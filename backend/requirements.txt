@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+openai
+google-generativeai
+langgraph
+chromadb
+pydantic-settings
+PyPDF2
+sentence-transformers
+fastmcp
+python-multipart
+passlib[bcrypt]
+python-jose[cryptography]
+langgraph-checkpoint-sqlite
+opencv-python

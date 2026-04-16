@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install *)",
+      "Bash(pip show *)",
+      "Bash(ipconfig)",
+      "Bash(findstr /i \"IPv4\")",
+      "Bash(netsh advfirewall *)",
+      "Bash(npm --version)",
+      "Bash(npm install *)",
+      "Bash(python -c \"import langgraph; print\\(langgraph.__version__\\)\")",
+      "Bash(findstr /i \"version\")",
+      "Bash(findstr /i \"version name\")",
+      "Bash(findstr /C:\"IPv4\")",
+      "Bash(python -c \"from app.api import assessment; print\\('OK'\\)\")"
+    ]
+  }
+}
