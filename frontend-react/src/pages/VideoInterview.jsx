@@ -12,31 +12,59 @@ import api from '../api/client'
 const PERSONAS = {
   Priya: {
     name: 'Priya Sharma',
-    role: 'HR Executive',
+    role: 'HR Recruiter',
     location: 'Chennai, India',
     avatarGradient: 'from-rose-500 via-pink-500 to-fuchsia-600',
     ringColor: 'ring-rose-400/60',
     glowColor: 'shadow-rose-500/40',
     badgeBg: 'bg-rose-500/15 border-rose-400/30 text-rose-300',
+    pulseColor: 'bg-rose-500/40',
     initial: 'P',
     greeting:
       'Hi! I\'m Priya from HR. Press "Talk" below and say hello whenever you\'re ready.',
   },
   Arjun: {
     name: 'Arjun Mehta',
-    role: 'Technical Lead',
+    role: 'Senior Engineer',
     location: 'Bangalore, India',
     avatarGradient: 'from-blue-500 via-indigo-500 to-violet-600',
     ringColor: 'ring-blue-400/60',
     glowColor: 'shadow-blue-500/40',
     badgeBg: 'bg-blue-500/15 border-blue-400/30 text-blue-300',
+    pulseColor: 'bg-indigo-500/40',
     initial: 'A',
     greeting:
       'The HR round is complete. Press "Talk" to begin your technical interview.',
   },
+  Rajesh: {
+    name: 'Rajesh Iyer',
+    role: 'Head of HR',
+    location: 'Mumbai, India',
+    avatarGradient: 'from-slate-500 via-slate-600 to-slate-700',
+    ringColor: 'ring-slate-400/60',
+    glowColor: 'shadow-slate-500/40',
+    badgeBg: 'bg-slate-500/15 border-slate-400/30 text-slate-300',
+    pulseColor: 'bg-slate-500/40',
+    initial: 'R',
+    greeting:
+      'Hi, I\'m Rajesh — Head of HR. We\'d like a final conversation before we wrap up. Press "Talk" when you\'re ready.',
+  },
+}
+
+// Maps candidate status → persona key
+const STATUS_TO_PERSONA = {
+  Shortlisted: 'Priya',
+  Assessed: 'Arjun',
+  Tech_Done: 'Rajesh',
+  // legacy status names kept for backwards compatibility
+  Pending_Screening: 'Priya',
+  Screening_Done: 'Arjun',
 }
 
 const ROUND_LABELS = {
+  Shortlisted: 'HR Screening Round',
+  Assessed: 'Technical Round',
+  Tech_Done: 'Final HR Round',
   Pending_Screening: 'HR Screening Round',
   Screening_Done: 'Technical Round',
   Interview_Complete: 'Interview Complete',
@@ -71,6 +99,26 @@ function PhaseLabel({ phase, persona }) {
   return <span>{map[phase] ?? 'Initialising…'}</span>
 }
 
+// Typing indicator — 3 bouncing dots shown while AI is processing
+function TypingIndicator({ personaFirstName }) {
+  return (
+    <div className="space-y-1">
+      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+        {personaFirstName}
+      </p>
+      <div className="flex items-center gap-1.5 bg-slate-800/70 border border-slate-700/30 px-4 py-3 rounded-2xl rounded-tl-sm w-fit">
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            className="w-2 h-2 rounded-full bg-slate-400"
+            style={{ animation: `typingDot 1.2s ease-in-out ${i * 0.2}s infinite` }}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // Animated audio bars shown when the persona is speaking
 function SpeakingWave({ active }) {
   if (!active) return null
@@ -94,8 +142,59 @@ function SpeakingWave({ active }) {
 // PersonaCard
 // ---------------------------------------------------------------------------
 function PersonaCard({ phase, persona, personaConfig, lastReply }) {
-  const isSpeaking = phase === 'speaking'
+  const isSpeaking   = phase === 'speaking'
   const isProcessing = phase === 'processing'
+  const isListening  = phase === 'idle'
+  const isRecording  = phase === 'recording'
+
+  // Per-phase avatar box-shadow glow — transitions handled by CSS animation
+  const avatarStyle = {
+    transition: 'box-shadow 0.4s ease-in-out',
+    animation: isSpeaking
+      ? 'speakingGlow 1.6s ease-in-out infinite'
+      : isListening
+      ? 'listeningGlow 2.4s ease-in-out infinite'
+      : isRecording
+      ? 'recordingGlow 1s ease-in-out infinite'
+      : 'none',
+  }
+
+  // Outer breathing ring color driven by phase
+  const outerRingStyle = {
+    transition: 'background 0.4s ease-in-out, opacity 0.4s ease-in-out',
+    animation: isSpeaking
+      ? 'outerRingSpeaking 1.4s ease-in-out infinite'
+      : isListening
+      ? 'outerRingListening 2.6s ease-in-out infinite'
+      : isRecording
+      ? 'outerRingRecording 1.1s ease-in-out infinite'
+      : 'none',
+    background: isSpeaking
+      ? 'rgba(99,102,241,0.10)'
+      : isListening
+      ? 'rgba(16,185,129,0.08)'
+      : isRecording
+      ? 'rgba(239,68,68,0.10)'
+      : 'transparent',
+  }
+
+  // Mid ring stroke color
+  const midRingStyle = {
+    transition: 'box-shadow 0.4s ease-in-out, opacity 0.4s ease-in-out',
+    boxShadow: isSpeaking
+      ? '0 0 0 2px rgba(99,102,241,0.55)'
+      : isListening
+      ? '0 0 0 2px rgba(16,185,129,0.45)'
+      : isRecording
+      ? '0 0 0 2px rgba(239,68,68,0.55)'
+      : '0 0 0 1px rgba(148,163,184,0.15)',
+    opacity: (isSpeaking || isListening || isRecording) ? 1 : 0.35,
+    animation: isSpeaking
+      ? 'midRingSpeaking 1.2s ease-in-out infinite'
+      : isListening
+      ? 'midRingListening 2.2s ease-in-out infinite'
+      : 'none',
+  }
 
   return (
     <div className="relative flex flex-col items-center justify-center h-full select-none overflow-hidden rounded-2xl bg-slate-900/80 border border-slate-700/50">
@@ -104,22 +203,22 @@ function PersonaCard({ phase, persona, personaConfig, lastReply }) {
         className={`absolute inset-0 bg-gradient-to-br ${personaConfig.avatarGradient} opacity-[0.06] pointer-events-none`}
       />
 
-      {/* Outer pulse ring when speaking */}
-      {isSpeaking && (
-        <div
-          className={`absolute w-44 h-44 rounded-full bg-gradient-to-br ${personaConfig.avatarGradient} opacity-20 animate-ping`}
-        />
-      )}
-
-      {/* Mid ring always shown */}
+      {/* Outer breathing ring */}
       <div
-        className={`absolute w-36 h-36 rounded-full ring-2 ${personaConfig.ringColor} ${isSpeaking ? 'animate-pulse' : 'opacity-40'}`}
+        className="absolute w-52 h-52 rounded-full pointer-events-none"
+        style={outerRingStyle}
       />
 
-      {/* Avatar */}
+      {/* Mid ring — color-coded by phase */}
       <div
-        className={`relative z-10 w-28 h-28 rounded-full bg-gradient-to-br ${personaConfig.avatarGradient} flex items-center justify-center shadow-2xl ${personaConfig.glowColor}`}
-        style={{ boxShadow: isSpeaking ? undefined : undefined }}
+        className="absolute w-36 h-36 rounded-full pointer-events-none"
+        style={midRingStyle}
+      />
+
+      {/* Avatar with glow */}
+      <div
+        className={`relative z-10 w-28 h-28 rounded-full bg-gradient-to-br ${personaConfig.avatarGradient} flex items-center justify-center shadow-2xl`}
+        style={avatarStyle}
       >
         <span className="text-4xl font-bold text-white">{personaConfig.initial}</span>
       </div>
@@ -137,7 +236,14 @@ function PersonaCard({ phase, persona, personaConfig, lastReply }) {
       </div>
 
       {/* Speaking wave */}
-      <div className={`relative z-10 mt-4 transition-opacity ${isSpeaking ? 'opacity-100 text-white/80' : 'opacity-0'}`}>
+      <div
+        className="relative z-10 mt-4"
+        style={{
+          opacity: isSpeaking ? 1 : 0,
+          transition: 'opacity 0.3s ease-in-out',
+          color: 'rgba(255,255,255,0.8)',
+        }}
+      >
         <SpeakingWave active={isSpeaking} />
       </div>
 
@@ -163,9 +269,14 @@ function PersonaCard({ phase, persona, personaConfig, lastReply }) {
 // ---------------------------------------------------------------------------
 // CandidateView (webcam PiP)
 // ---------------------------------------------------------------------------
-function CandidateView({ videoRef, candidateName, cameraError }) {
+function CandidateView({ videoRef, candidateName, cameraError, isActive }) {
   return (
-    <div className="relative rounded-2xl overflow-hidden bg-slate-800/60 border border-slate-700/50 aspect-video flex items-center justify-center">
+    <div
+      className="relative aspect-video flex items-center justify-center bg-slate-800/60 rounded-2xl border border-slate-700/50"
+      style={{
+        boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(148,163,184,0.08)',
+      }}
+    >
       {cameraError ? (
         <div className="flex flex-col items-center gap-2 text-slate-500">
           <MicOff size={28} />
@@ -177,10 +288,22 @@ function CandidateView({ videoRef, candidateName, cameraError }) {
           autoPlay
           muted
           playsInline
-          className="w-full h-full object-cover scale-x-[-1]"
+          className="w-full h-full object-cover scale-x-[-1] rounded-2xl"
         />
       )}
-      {/* Name badge */}
+
+      {/* Proctoring active badge — top-right */}
+      {isActive && (
+        <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm border border-red-500/30 px-2.5 py-1 rounded-full">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+          </span>
+          <span className="text-[10px] font-semibold text-red-400 tracking-wide uppercase">Proctoring Active</span>
+        </div>
+      )}
+
+      {/* Name badge — bottom-left */}
       <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-black/50 backdrop-blur-sm px-3 py-1 rounded-full">
         <div className="w-2 h-2 rounded-full bg-emerald-400" />
         <span className="text-white text-xs font-medium">{candidateName}</span>
@@ -291,6 +414,7 @@ export default function VideoInterview() {
   // DOM refs
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
+  const chatEndRef = useRef(null)
 
   // Media refs
   const videoStreamRef = useRef(null)
@@ -302,7 +426,9 @@ export default function VideoInterview() {
   // Component state
   const [phase, setPhase] = useState('init')   // init | ready | starting | idle | recording | processing | speaking | complete | error
   const [turn, setTurn] = useState(0)
-  const [interviewStatus, setInterviewStatus] = useState('Pending_Screening')
+  const [interviewStatus, setInterviewStatus] = useState(
+    () => localStorage.getItem('candidate_status') || 'Shortlisted'
+  )
   const [lastTranscript, setLastTranscript] = useState('')
   const [lastReply, setLastReply] = useState('')
   const [error, setError] = useState('')
@@ -310,7 +436,7 @@ export default function VideoInterview() {
   const [elapsedSecs, setElapsedSecs] = useState(0)
 
   // Derived
-  const persona = interviewStatus === 'Screening_Done' ? 'Arjun' : 'Priya'
+  const persona = STATUS_TO_PERSONA[interviewStatus] ?? 'Priya'
   const personaConfig = PERSONAS[persona]
   const roundLabel = ROUND_LABELS[interviewStatus] ?? 'Interview'
 
@@ -357,7 +483,7 @@ export default function VideoInterview() {
 
     proctoringTimerRef.current = setInterval(() => {
       captureAndSendSnapshot()
-    }, 10_000)
+    }, 30_000)
 
     return () => clearInterval(proctoringTimerRef.current)
   }, [phase, turn, candidateId])
@@ -377,10 +503,10 @@ export default function VideoInterview() {
       (blob) => {
         if (!blob) return
         const form = new FormData()
-        form.append('sid', String(candidateId))
-        form.append('turn', String(turn))
         form.append('file', blob, 'frame.jpg')
-        api.post('/interview/analyze', form).catch(() => {})
+        api
+          .post(`/interview/analyze?sid=${candidateId}&turn=${turn}`, form)
+          .catch((error) => console.error('🔍 FastAPI 422 Error:', error.response?.data?.detail || error.message))
       },
       'image/jpeg',
       0.7,
@@ -412,6 +538,12 @@ export default function VideoInterview() {
 
       playAudio(audio_base64, () => {
         if (is_complete) {
+          const nextStatus = {
+            Shortlisted: 'Screening_Done',
+            Assessed: 'Tech_Done',
+            Tech_Done: 'Interview_Complete',
+          }[interview_status]
+          if (nextStatus) localStorage.setItem('candidate_status', nextStatus)
           setPhase('complete')
         } else {
           setPhase('idle')
@@ -529,6 +661,11 @@ export default function VideoInterview() {
     }
   }, [])
 
+  // ---- Auto-scroll chat to bottom on new messages -------------------------
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [lastTranscript, lastReply, phase])
+
   // ---- Format elapsed time -------------------------------------------------
   const formatTime = (s) => {
     const m = Math.floor(s / 60)
@@ -543,7 +680,7 @@ export default function VideoInterview() {
     return (
       <ThankYouScreen
         candidateName={candidateName}
-        onReturn={() => navigate('/candidate-login')}
+        onReturn={() => navigate('/dashboard')}
       />
     )
   }
@@ -603,50 +740,66 @@ export default function VideoInterview() {
         </div>
 
         {/* Right column: candidate webcam + transcript log */}
-        <div className="lg:col-span-2 flex flex-col gap-4 min-h-0">
+        <div className="lg:col-span-2 flex flex-col gap-3 min-h-0">
           {/* Webcam */}
-          <CandidateView
-            videoRef={videoRef}
-            candidateName={candidateName}
-            cameraError={cameraError}
-          />
+          <div className="shrink-0">
+            <CandidateView
+              videoRef={videoRef}
+              candidateName={candidateName}
+              cameraError={cameraError}
+              isActive={phase !== 'init' && phase !== 'ready' && phase !== 'complete'}
+            />
+          </div>
 
           {/* Transcript log */}
-          <div className="flex-1 bg-slate-900/60 border border-slate-800/60 rounded-2xl p-4 overflow-y-auto min-h-0">
-            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-3">
+          <div className="flex-1 bg-slate-900/60 border border-slate-800/60 rounded-2xl p-4 overflow-y-auto min-h-0 flex flex-col">
+            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-3 shrink-0">
               Transcript
             </p>
 
-            {phase === 'init' || phase === 'ready' ? (
-              <p className="text-sm text-slate-600 italic">
-                {phase === 'init' ? 'Setting up camera…' : personaConfig.greeting}
-              </p>
-            ) : lastTranscript || lastReply ? (
-              <div className="space-y-3">
-                {lastTranscript && (
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider">You</p>
-                    <p className="text-sm text-slate-300 bg-slate-800/50 px-3 py-2 rounded-xl rounded-tl-sm">
-                      {lastTranscript}
-                    </p>
-                  </div>
-                )}
-                {lastReply && (
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider">
-                      {personaConfig.name.split(' ')[0]}
-                    </p>
-                    <p className="text-sm text-slate-300 bg-slate-800/50 px-3 py-2 rounded-xl rounded-tr-sm">
-                      {lastReply}
-                    </p>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <p className="text-sm text-slate-600 italic">
-                Interview in progress…
-              </p>
-            )}
+            <div className="flex-1 flex flex-col justify-end">
+              {phase === 'init' || phase === 'ready' ? (
+                <p className="text-sm text-slate-600 italic">
+                  {phase === 'init' ? 'Setting up camera…' : personaConfig.greeting}
+                </p>
+              ) : lastTranscript || lastReply ? (
+                <div className="space-y-3">
+                  {lastTranscript && (
+                    <div className="space-y-1 flex flex-col items-end">
+                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">You</p>
+                      <p className="text-sm text-blue-100 bg-blue-600/25 border border-blue-500/20 px-3 py-2 rounded-2xl rounded-br-sm max-w-[90%]">
+                        {lastTranscript}
+                      </p>
+                    </div>
+                  )}
+                  {lastReply && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                        {personaConfig.name.split(' ')[0]}
+                      </p>
+                      <p className="text-sm text-slate-200 bg-slate-800/70 border border-slate-700/30 px-3 py-2 rounded-2xl rounded-tl-sm max-w-[90%]">
+                        {lastReply}
+                      </p>
+                    </div>
+                  )}
+                  {phase === 'processing' && (
+                    <TypingIndicator personaFirstName={personaConfig.name.split(' ')[0]} />
+                  )}
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-slate-600 italic">
+                    Interview in progress…
+                  </p>
+                  {phase === 'processing' && (
+                    <div className="mt-3">
+                      <TypingIndicator personaFirstName={personaConfig.name.split(' ')[0]} />
+                    </div>
+                  )}
+                </>
+              )}
+              <div ref={chatEndRef} />
+            </div>
           </div>
         </div>
       </main>
@@ -723,11 +876,54 @@ export default function VideoInterview() {
         </div>
       </footer>
 
-      {/* Keyframe injection for speaking wave + bar animations */}
+      {/* Keyframe injection */}
       <style>{`
         @keyframes speakBar {
           from { transform: scaleY(0.3); opacity: 0.5; }
           to   { transform: scaleY(1);   opacity: 1;   }
+        }
+        @keyframes typingDot {
+          0%, 60%, 100% { transform: translateY(0);    opacity: 0.4; }
+          30%            { transform: translateY(-5px); opacity: 1;   }
+        }
+
+        /* ── Avatar glow animations ────────────────────────────── */
+        @keyframes listeningGlow {
+          0%, 100% { box-shadow: 0 0 8px 2px rgba(16,185,129,0.10), 0 0 0 0 rgba(16,185,129,0); }
+          50%       { box-shadow: 0 0 22px 8px rgba(16,185,129,0.28), 0 0 0 14px rgba(16,185,129,0.07); }
+        }
+        @keyframes recordingGlow {
+          0%, 100% { box-shadow: 0 0 8px 2px rgba(239,68,68,0.15),  0 0 0 0 rgba(239,68,68,0); }
+          50%       { box-shadow: 0 0 22px 8px rgba(239,68,68,0.35), 0 0 0 12px rgba(239,68,68,0.08); }
+        }
+        @keyframes speakingGlow {
+          0%, 100% { box-shadow: 0 0 10px 4px rgba(99,102,241,0.15),  0 0 0 0 rgba(99,102,241,0); }
+          50%       { box-shadow: 0 0 30px 10px rgba(99,102,241,0.35), 0 0 0 18px rgba(99,102,241,0.08); }
+        }
+
+        /* ── Outer ring animations ──────────────────────────────── */
+        @keyframes outerRingListening {
+          0%, 100% { transform: scale(0.92); opacity: 0;   }
+          50%       { transform: scale(1.06); opacity: 0.7; }
+        }
+        @keyframes outerRingRecording {
+          0%, 100% { transform: scale(0.95); opacity: 0;   }
+          50%       { transform: scale(1.08); opacity: 0.8; }
+        }
+        @keyframes outerRingSpeaking {
+          0%, 100% { transform: scale(0.90); opacity: 0;   }
+          50%       { transform: scale(1.10); opacity: 0.6; }
+        }
+
+        /* ── Mid ring animations ────────────────────────────────── */
+        @keyframes midRingListening {
+          0%, 100% { transform: scale(1);    }
+          50%       { transform: scale(1.05); }
+        }
+        @keyframes midRingSpeaking {
+          0%, 100% { transform: scale(1);    }
+          25%       { transform: scale(1.04); }
+          75%       { transform: scale(1.08); }
         }
       `}</style>
     </div>

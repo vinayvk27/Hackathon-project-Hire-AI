@@ -10,8 +10,12 @@ JSON_FORMAT = """
     # OUTPUT SPECIFICATION
     You MUST output valid JSON only. Do not include any conversational filler or markdown.
 
+    Extract the candidate's full name and email address from the resume text.
+    If the email is missing, return "Not Provided". If the name is missing, use "Unknown Candidate".
+
     {
         "candidate_name": "Full Name",
+        "candidate_email": "candidate@example.com",
         "overall_score": 0,
         "alignment_metrics": {
             "experience_score": 0,

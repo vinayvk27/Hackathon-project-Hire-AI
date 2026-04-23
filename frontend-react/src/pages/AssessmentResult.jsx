@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CheckCircle, XCircle, AlertCircle, Trophy, Video } from 'lucide-react'
+import { CheckCircle2, LayoutDashboard } from 'lucide-react'
 
 export default function AssessmentResult() {
   const [result, setResult] = useState(null)
@@ -10,47 +10,36 @@ export default function AssessmentResult() {
     const stored = localStorage.getItem('assessment_result')
     if (!stored) { navigate('/candidate-login'); return }
     setResult(JSON.parse(stored))
+    // Backend already set status = "Assessed" on submit; sync localStorage so
+    // Stage 3 (Technical Round) is unlocked when the candidate lands on the dashboard.
+    localStorage.setItem('candidate_status', 'Assessed')
   }, [])
 
   if (!result) return null
-
-  const score = result.technical_score ?? 0
-  const { color, label, Icon } =
-    score >= 75 ? { color: 'text-green-600',  label: 'Excellent',    Icon: Trophy        } :
-    score >= 55 ? { color: 'text-yellow-600', label: 'Good',         Icon: CheckCircle   } :
-    score >= 40 ? { color: 'text-orange-500', label: 'Needs Work',   Icon: AlertCircle   } :
-                  { color: 'text-red-600',    label: 'Below Bar',    Icon: XCircle       }
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
       <div className="max-w-lg w-full space-y-6">
 
-        {/* Score card */}
-        <div className="card p-8 text-center space-y-3">
-          <Icon size={40} className={`mx-auto ${color}`} />
-          <h1 className="text-3xl font-bold text-slate-900">{score}<span className="text-lg font-normal text-slate-400">/100</span></h1>
-          <p className={`text-lg font-semibold ${color}`}>{label}</p>
-          <p className="text-sm text-slate-500">Your technical assessment is complete.</p>
-        </div>
-
-        {/* Reasoning */}
-        <div className="card p-6 space-y-2">
-          <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wider">Evaluator Feedback</h2>
-          <p className="text-sm text-slate-600 leading-relaxed">{result.reasoning_summary}</p>
-        </div>
-
-        <div className="card p-4 text-center">
-          <p className="text-sm text-slate-500">
-            Your results have been saved. Proceed to the AI video interview to continue.
+        {/* Submission confirmation */}
+        <div className="card p-8 text-center space-y-4">
+          <div className="flex justify-center">
+            <div className="bg-emerald-100 p-4 rounded-full">
+              <CheckCircle2 size={40} className="text-emerald-600" />
+            </div>
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900">Assessment Submitted Successfully</h1>
+          <p className="text-slate-500 leading-relaxed">
+            Our team is evaluating your responses, and your dashboard will be updated shortly.
           </p>
         </div>
 
         <button
-          onClick={() => navigate('/interview')}
+          onClick={() => navigate('/dashboard')}
           className="w-full flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white font-semibold py-3 px-6 rounded-xl shadow-md transition-colors text-base"
         >
-          <Video size={20} />
-          Start AI Video Interview
+          <LayoutDashboard size={20} />
+          Return to Dashboard
         </button>
 
         <button

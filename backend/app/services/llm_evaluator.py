@@ -37,7 +37,8 @@ def evaluate_candidate(resume_text: str, jd_text: str, system_prompt: str) -> di
 
     except Exception as e:
         return {
-            "candidate_name": "Unknown",
+            "candidate_name": "Unknown Candidate",
+            "candidate_email": "Not Provided",
             "overall_score": 0,
             "alignment_metrics": {
                 "experience_score": 0,

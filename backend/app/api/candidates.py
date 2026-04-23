@@ -8,7 +8,7 @@ from app.services.mcp_router import route_jd_intent, get_system_prompt_by_domain
 from app.services.llm_evaluator import evaluate_candidate
 from app.database import SessionLocal
 from app.models import Job, Candidate
-from app.models.candidate import generate_candidate_credentials
+from app.models.candidate import generate_candidate_credentials, username_from_name
 
 router = APIRouter()
 
@@ -89,34 +89,48 @@ def match_candidates(job_id: int):
                 "llm_evaluation": llm_eval,
             })
 
-        # Step 5: Sort by LLM overall_score descending
+        # Step 5: Sort by LLM overall_score descending, discard scores below 50
         enriched_matches.sort(
             key=lambda x: x["llm_evaluation"].get("overall_score", 0),
             reverse=True,
         )
+        qualified = [m for m in enriched_matches if m["llm_evaluation"].get("overall_score", 0) >= 50]
 
-        # Step 6: Auto-register top 3 as Shortlisted candidates
-        top3 = enriched_matches[:3]
+        # Step 6: Auto-register top 3 qualified candidates as Shortlisted
+        top3 = qualified[:3]
         for match in top3:
             filename = match["source"]
-            username, password = generate_candidate_credentials(filename)
+            llm_eval = match["llm_evaluation"]
 
-            # Avoid duplicate registrations on repeated calls
-            existing = db.query(Candidate).filter(Candidate.username == username).first()
+            extracted_name  = llm_eval.get("candidate_name") or ""
+            extracted_email = llm_eval.get("candidate_email") or ""
+            if not extracted_name or extracted_name == "Unknown Candidate":
+                extracted_name = os.path.splitext(os.path.basename(filename))[0]
+            if not extracted_email or extracted_email == "Not Provided":
+                extracted_email = None  # resolved below after username is set
+
+            username = username_from_name(extracted_name)
+            if not extracted_email:
+                extracted_email = f"{username}@hire.ai"
+
+            _, password = generate_candidate_credentials(filename)
+
+            # Avoid duplicate registrations on repeated calls (match on email)
+            existing = db.query(Candidate).filter(Candidate.email == extracted_email).first()
             if existing:
                 match["username"] = existing.username
                 match["password"] = existing.password
                 continue
 
             candidate = Candidate(
-                name=username,
-                email=f"{username}@hire.ai",
+                name=extracted_name,
+                email=extracted_email,
                 username=username,
                 password=password,
                 password_hash=password,  # plain-text for demo — no hashing
                 resume_source=filename,
                 job_id=job_id,
-                match_score=match["llm_evaluation"].get("overall_score", 0.0),
+                match_score=llm_eval.get("overall_score", 0.0),
                 status="Shortlisted",
             )
             db.add(candidate)

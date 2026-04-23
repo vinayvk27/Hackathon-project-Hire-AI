@@ -18,15 +18,17 @@ export default function CandidateLogin() {
       const res = await api.post('/assessment/login', { email, password })
       const { access_token, candidate_id, name, status } = res.data
 
-      if (status !== 'Shortlisted' && status !== 'Assessed') {
-        setError(`Your application status is "${status}". Access is only available for Shortlisted or Assessed candidates.`)
+      const ALLOWED = ['Shortlisted', 'Screening_Done', 'Assessed', 'Tech_Done']
+      if (!ALLOWED.includes(status)) {
+        setError(`Your application status is "${status}". Access is not available at this stage.`)
         return
       }
 
       localStorage.setItem('candidate_token', access_token)
       localStorage.setItem('candidate_id', candidate_id)
       localStorage.setItem('candidate_name', name)
-      navigate(status === 'Assessed' ? '/interview' : '/assessment')
+      localStorage.setItem('candidate_status', status)
+      navigate('/dashboard')
     } catch (err) {
       setError(err.response?.data?.detail || 'Invalid email or password.')
     } finally {

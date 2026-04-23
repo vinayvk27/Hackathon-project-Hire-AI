@@ -8,18 +8,22 @@ from app.database import Base
 
 
 def generate_candidate_credentials(filename: str) -> tuple[str, str]:
-    """Return (username, password) derived from a resume filename.
-
-    Username: lowercase alphanumeric slug from the base filename (no extension),
-              with non-alphanumeric characters collapsed to underscores and
-              leading/trailing underscores stripped.
-    Password: random 8-character string of letters and digits.
-    """
+    """Return (username, password) derived from a resume filename."""
     base = os.path.splitext(os.path.basename(filename))[0]
     username = re.sub(r"[^a-z0-9]+", "_", base.lower()).strip("_")
     alphabet = string.ascii_letters + string.digits
     password = "".join(secrets.choice(alphabet) for _ in range(8))
     return username, password
+
+
+def username_from_name(candidate_name: str) -> str:
+    """Derive a unique username slug from a candidate's full name.
+
+    e.g. "Vinay Kumar" → "vinay_kumar_4f2a"
+    """
+    slug = re.sub(r"[^a-z0-9]+", "_", candidate_name.lower()).strip("_") or "candidate"
+    suffix = secrets.token_hex(2)  # 4-char hex suffix guarantees uniqueness
+    return f"{slug}_{suffix}"
 
 
 class Candidate(Base):
@@ -45,8 +49,10 @@ class Candidate(Base):
     reasoning_summary = Column(Text, nullable=True)
 
     # Video interview fields
-    screening_audio_log = Column(Text, nullable=True)   # JSON-serialised conversation log
+    screening_audio_log = Column(Text, nullable=True)   # JSON conversation log — Priya (HR round)
+    tech_audio_log      = Column(Text, nullable=True)   # JSON conversation log — Arjun + Rajesh rounds
     proctoring_score    = Column(Float, nullable=True)  # 0.0–1.0 cheating-risk score
+    # interview_status values: Pending_Screening → Screening_Done → Tech_Done → Interview_Complete
     interview_status    = Column(String, default="Pending_Screening", nullable=False)
 
     created_at      = Column(DateTime, default=datetime.utcnow)
