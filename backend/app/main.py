@@ -10,6 +10,8 @@ from app.api import candidates
 from app.api import audio
 from app.api import assessment
 from app.api import interview
+from app.api import internal
+from app.api import budget
 
 from app.database import engine, Base
 
@@ -37,3 +39,5 @@ app.include_router(candidates.router, prefix="/candidates")
 app.include_router(audio.router, prefix="/audio")
 app.include_router(assessment.router, prefix="/assessment")
 app.include_router(interview.router, prefix="/interview")
+app.include_router(internal.router, prefix="/api/internal")
+app.include_router(budget.router, prefix="/api")

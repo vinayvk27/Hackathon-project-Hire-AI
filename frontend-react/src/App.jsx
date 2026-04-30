@@ -43,8 +43,8 @@ export default function App() {
           }
         >
           <Route index element={<Navigate to="/jd" replace />} />
-          <Route path="jd"         element={<JDGenerator />} />
-          <Route path="match"      element={<ResumeMatcher />} />
+          <Route path="jd"      element={<JDGenerator />} />
+          <Route path="match"   element={<ResumeMatcher />} />
           <Route path="candidates" element={<Candidates />} />
         </Route>
 

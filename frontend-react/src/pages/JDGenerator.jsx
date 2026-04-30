@@ -162,12 +162,12 @@ function Step2({ questions, answers, setAnswers, onNext, loading }) {
 }
 
 /* ── Step 3 ─────────────────────────────────────────── */
-function Step3({ jd, onSave, savedJobId, loading }) {
+function Step3({ jd, onSave, submitted, loading }) {
   return (
     <div className="max-w-2xl space-y-6">
       <div>
-        <h2 className="text-lg font-semibold text-slate-800 mb-1">Review & Save</h2>
-        <p className="text-sm text-slate-500">Review the generated JD and save it to the database.</p>
+        <h2 className="text-lg font-semibold text-slate-800 mb-1">Review & Submit</h2>
+        <p className="text-sm text-slate-500">Review the generated JD and submit it to the AI pipeline.</p>
       </div>
 
       {/* JD Preview */}
@@ -195,17 +195,16 @@ function Step3({ jd, onSave, savedJobId, loading }) {
         </div>
       </div>
 
-      {savedJobId ? (
+      {submitted ? (
         <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
           <CheckCircle size={20} className="text-green-600 shrink-0" />
           <div>
-            <p className="text-sm font-semibold text-green-800">Job saved successfully!</p>
-            <p className="text-xs text-green-700">Use <strong>Job ID: {savedJobId}</strong> in Resume Matcher.</p>
+            <p className="text-sm font-semibold text-green-800">Job Description submitted to Talent Management AI Pipeline for review.</p>
           </div>
         </div>
       ) : (
         <button className="btn-primary" onClick={onSave} disabled={loading}>
-          {loading ? 'Saving...' : 'Save JD to Database'}
+          {loading ? 'Submitting...' : 'Submit to AI Pipeline'}
         </button>
       )}
     </div>
@@ -216,10 +215,10 @@ function Step3({ jd, onSave, savedJobId, loading }) {
 const EXPERIENCE_LEVELS = ['Junior', 'Mid-Level', 'Senior', 'Lead']
 
 function DirectUploadForm() {
-  const [form, setForm]         = useState({ title: '', description: '', skills: '', experience_level: 'Mid-Level' })
-  const [savedJobId, setSavedId] = useState(null)
-  const [loading, setLoading]   = useState(false)
-  const [error, setError]       = useState('')
+  const [form, setForm]       = useState({ title: '', description: '', skills: '', experience_level: 'Mid-Level' })
+  const [submitted, setSubmitted] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError]     = useState('')
 
   const set = (field) => (e) => setForm((prev) => ({ ...prev, [field]: e.target.value }))
 
@@ -229,36 +228,39 @@ function DirectUploadForm() {
     setError('')
     setLoading(true)
     try {
-      const required_skills = form.skills.split(',').map((s) => s.trim()).filter(Boolean)
-      const res = await api.post('/jobs/create', {
-        title: form.title.trim(),
-        description: form.description.trim(),
-        required_skills,
-        experience_level: form.experience_level,
+      const sessionUser = JSON.parse(localStorage.getItem('user') || '{}')
+      await fetch('http://localhost:5678/webhook-test/request-hire', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          manager_name: sessionUser.name,
+          department: sessionUser.department,
+          job_title: form.title.trim(),
+          job_description: form.description.trim(),
+        }),
       })
-      setSavedId(res.data.id)
+      setSubmitted(true)
     } catch {
-      setError('Failed to save JD. Is the backend running?')
+      setError('Failed to submit JD. Is n8n running on port 5678?')
     } finally {
       setLoading(false)
     }
   }
 
-  if (savedJobId) {
+  if (submitted) {
     return (
       <div className="max-w-2xl">
         <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl px-4 py-4">
           <CheckCircle size={22} className="text-green-600 shrink-0" />
           <div>
-            <p className="text-sm font-semibold text-green-800">Job saved successfully!</p>
-            <p className="text-xs text-green-700 mt-0.5">Use <strong>Job ID: {savedJobId}</strong> in Resume Matcher.</p>
+            <p className="text-sm font-semibold text-green-800">Job Description submitted to Talent Management AI Pipeline for review.</p>
           </div>
         </div>
         <button
           className="btn-secondary mt-4 text-sm"
-          onClick={() => { setForm({ title: '', description: '', skills: '', experience_level: 'Mid-Level' }); setSavedId(null) }}
+          onClick={() => { setForm({ title: '', description: '', skills: '', experience_level: 'Mid-Level' }); setSubmitted(false) }}
         >
-          Upload Another JD
+          Submit Another JD
         </button>
       </div>
     )
@@ -322,7 +324,7 @@ function DirectUploadForm() {
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       <button className="btn-primary" onClick={handleSave} disabled={!isValid || loading}>
-        {loading ? 'Saving...' : 'Save to Database'}
+        {loading ? 'Submitting...' : 'Submit to AI Pipeline'}
       </button>
     </div>
   )
@@ -336,7 +338,7 @@ export default function JDGenerator() {
   const [questions, setQuestions] = useState([])
   const [answers, setAnswers]     = useState({})
   const [generatedJD, setJD]      = useState(null)
-  const [savedJobId, setSavedId]  = useState(null)
+  const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading]     = useState(false)
 
   const switchMode = (m) => {
@@ -346,7 +348,7 @@ export default function JDGenerator() {
     setQuestions([])
     setAnswers({})
     setJD(null)
-    setSavedId(null)
+    setSubmitted(false)
   }
 
   const getQuestions = async () => {
@@ -385,10 +387,20 @@ export default function JDGenerator() {
   const saveJD = async () => {
     setLoading(true)
     try {
-      const res = await api.post('/jobs/create', generatedJD)
-      setSavedId(res.data.id)
+      const sessionUser = JSON.parse(localStorage.getItem('user') || '{}')
+      await fetch('http://localhost:5678/webhook-test/request-hire', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          manager_name: sessionUser.name,
+          department: sessionUser.department,
+          job_title: generatedJD.title,
+          job_description: generatedJD.description,
+        }),
+      })
+      setSubmitted(true)
     } catch {
-      alert('Failed to save JD.')
+      alert('Failed to submit JD. Is n8n running on port 5678?')
     } finally {
       setLoading(false)
     }
@@ -442,7 +454,7 @@ export default function JDGenerator() {
             <Step2 questions={questions} answers={answers} setAnswers={setAnswers} onNext={generateJD} loading={loading} />
           )}
           {step === 3 && (
-            <Step3 jd={generatedJD} onSave={saveJD} savedJobId={savedJobId} loading={loading} />
+            <Step3 jd={generatedJD} onSave={saveJD} submitted={submitted} loading={loading} />
           )}
         </>
       )}

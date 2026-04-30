@@ -15,14 +15,11 @@ export default function Login() {
     setError('')
     setLoading(true)
     try {
-      const { data } = await api.post('/auth/login', { username, password })
+      const { data } = await api.post('/api/login', { username, password })
+      localStorage.setItem('user', JSON.stringify(data.user))
       localStorage.setItem('hire_ai_auth', 'true')
-      localStorage.setItem('hire_ai_role', data.role || 'candidate')
-      if (data.role === 'hr_manager') {
-        navigate('/jd')
-      } else {
-        navigate('/assessment')
-      }
+      localStorage.setItem('hire_ai_role', 'hr_manager')
+      navigate('/jd')
     } catch {
       setError('Invalid username or password.')
     } finally {
@@ -50,7 +47,7 @@ export default function Login() {
               <input
                 className="input"
                 type="text"
-                placeholder="admin"
+                placeholder="hw_demo"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
@@ -76,6 +73,19 @@ export default function Login() {
               {loading ? 'Signing in...' : 'Sign in'}
             </button>
           </form>
+        </div>
+
+        {/* Demo accounts hint */}
+        <div className="mt-4 bg-slate-800 rounded-xl px-4 py-3 text-center">
+          <p className="text-slate-300 text-xs font-medium">Demo Accounts</p>
+          <p className="text-slate-400 text-xs mt-1">
+            <span className="text-white font-mono">hw_demo</span>,{' '}
+            <span className="text-white font-mono">design_demo</span>,{' '}
+            <span className="text-white font-mono">hr_demo</span>
+          </p>
+          <p className="text-slate-400 text-xs mt-0.5">
+            Password: <span className="text-white font-mono">password123</span>
+          </p>
         </div>
       </div>
     </div>

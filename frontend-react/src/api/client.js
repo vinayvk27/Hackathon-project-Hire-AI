@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-// Empty baseURL — Vite proxy forwards all API calls to localhost:8000
+// Empty baseURL — Vite proxy forwards all API calls to localhost:8001
 // This means the IP never needs to be hardcoded again
 const api = axios.create({
   baseURL: '',

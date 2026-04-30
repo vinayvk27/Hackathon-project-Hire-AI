@@ -22,8 +22,8 @@ class GenerateJDRequest(BaseModel):
 class JobCreateRequest(BaseModel):
     title: str
     description: str
-    required_skills: List[str]
-    experience_level: str
+    required_skills: Optional[List[str]] = []
+    experience_level: Optional[str] = ""
 
 
 @router.post("/questions")

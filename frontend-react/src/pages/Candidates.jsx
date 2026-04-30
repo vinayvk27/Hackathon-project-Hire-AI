@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import {
   Clock, Award, RefreshCw, FileText, X, CheckCircle2,
   XCircle, ShieldCheck, MessageSquare, Loader2, AlertCircle,
-  ChevronRight, ChevronDown, FolderSearch,
+  ChevronRight, ChevronDown, FolderSearch, Brain, Send,
+  UserCheck, Sparkles,
 } from 'lucide-react'
 import api from '../api/client'
 import clsx from 'clsx'
@@ -349,8 +350,14 @@ export default function Candidates() {
   const [candidates, setCandidates] = useState([])
   const [loading,    setLoading]    = useState(true)
   const [actionId,   setActionId]   = useState(null)
-  const [reportFor,  setReportFor]  = useState(null)   // { id, name }
-  const [expandedId, setExpandedId] = useState(null)   // expanded row id
+  const [reportFor,  setReportFor]  = useState(null)
+  const [expandedId, setExpandedId] = useState(null)
+
+  // ── Internal Candidates ──────────────────────────────────────────────────
+  const [internalCandidates, setInternalCandidates] = useState([])
+  const [internalLoading,    setInternalLoading]    = useState(true)
+  const [notifyLoading,      setNotifyLoading]      = useState(false)
+  const [notifySuccess,      setNotifySuccess]      = useState(false)
 
   const fetchCandidates = async () => {
     setLoading(true)
@@ -364,7 +371,61 @@ export default function Candidates() {
     }
   }
 
-  useEffect(() => { fetchCandidates() }, [])
+  const fetchInternalRecommendations = async () => {
+    setInternalLoading(true)
+    try {
+      const jobsRes  = await api.get('/jobs/list')
+      const firstJob = jobsRes.data?.[0]
+      if (!firstJob) { setInternalLoading(false); return }
+
+      const [matchRes, benchRes] = await Promise.all([
+        api.post('/api/internal/match', { job_id: firstJob.id }),
+        api.get('/api/internal/bench'),
+      ])
+
+      const benchMap = Object.fromEntries(benchRes.data.map(b => [b.name, b]))
+      const merged   = matchRes.data.map(m => ({
+        name:      m.name,
+        email:     benchMap[m.name]?.email ?? '',
+        score:     m.score,
+        reasoning: m.reasoning,
+        job_id:    firstJob.id,
+        job_title: firstJob.title,
+      }))
+      setInternalCandidates(merged)
+    } catch (err) {
+      console.error('Failed to load internal recommendations:', err)
+      setInternalCandidates([])
+    } finally {
+      setInternalLoading(false)
+    }
+  }
+
+  const authorizeAndNotify = async () => {
+    setNotifyLoading(true)
+    setNotifySuccess(false)
+    try {
+      await api.post('/assessment/candidates/notify', {
+        candidates: internalCandidates.map(c => ({
+          name:   c.name,
+          email:  c.email,
+          job_id: c.job_id,
+        })),
+      })
+      setNotifySuccess(true)
+      fetchCandidates()
+      setTimeout(() => setNotifySuccess(false), 6000)
+    } catch (err) {
+      console.error('Notify failed:', err)
+    } finally {
+      setNotifyLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchCandidates()
+    fetchInternalRecommendations()
+  }, [])
 
   const shortlist = async (id) => {
     setActionId(id)
@@ -418,6 +479,136 @@ export default function Candidates() {
           </div>
         ))}
       </div>
+
+      {/* ── AI Recommended Internal Candidates ─────────────────────────── */}
+      <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
+
+        {/* Section header */}
+        <div className="flex items-center justify-between px-6 py-5 bg-gradient-to-r from-slate-900 to-slate-800">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-400/25 flex items-center justify-center shrink-0">
+              <Brain size={20} className="text-blue-400" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                AI Recommended Internal Candidates
+                <span className="inline-flex items-center gap-1 bg-blue-500/20 border border-blue-400/30 text-blue-300 text-[10px] font-semibold px-2 py-0.5 rounded-full">
+                  <Sparkles size={9} /> AI Match
+                </span>
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Bench talent identified by the orchestration pipeline — authorize to generate credentials &amp; dispatch invitations
+              </p>
+            </div>
+          </div>
+
+          {internalCandidates.length > 0 && (
+            <button
+              onClick={authorizeAndNotify}
+              disabled={notifyLoading || notifySuccess}
+              className={clsx(
+                'flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-xl transition-all duration-200 shrink-0 ml-4',
+                notifySuccess
+                  ? 'bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 cursor-default'
+                  : 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/40 disabled:opacity-60 disabled:cursor-wait',
+              )}
+            >
+              {notifyLoading ? (
+                <>
+                  <Loader2 size={15} className="animate-spin" />
+                  Generating credentials and dispatching secure emails…
+                </>
+              ) : notifySuccess ? (
+                <>
+                  <CheckCircle2 size={15} />
+                  Invitations Dispatched
+                </>
+              ) : (
+                <>
+                  <Send size={15} />
+                  Authorize &amp; Notify Candidates
+                </>
+              )}
+            </button>
+          )}
+        </div>
+
+        {/* Body */}
+        <div className="bg-white">
+          {internalLoading ? (
+            <div className="flex items-center justify-center gap-3 py-12 text-slate-400">
+              <Loader2 size={20} className="animate-spin" />
+              <span className="text-sm">Running AI match analysis…</span>
+            </div>
+          ) : internalCandidates.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+              <UserCheck size={32} className="mb-3 text-slate-300" strokeWidth={1.5} />
+              <p className="text-sm font-medium">No job found to match against</p>
+              <p className="text-xs text-slate-400 mt-1">Create a job description first, then return here</p>
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="border-b border-slate-100 bg-slate-50/80">
+                <tr>
+                  {['Candidate', 'AI Score', 'AI Reasoning', 'Role'].map(h => (
+                    <th
+                      key={h}
+                      className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider"
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {internalCandidates.map((c, i) => (
+                  <tr key={i} className="hover:bg-blue-50/30 transition-colors">
+                    {/* Name + email */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <p className="text-[14px] font-bold text-slate-800 leading-tight">{c.name}</p>
+                      <p className="text-xs text-slate-400 mt-0.5 font-mono">{c.email}</p>
+                    </td>
+
+                    {/* AI Score */}
+                    <td className="px-6 py-4">
+                      <ScoreBar value={c.score} label={`${c.score}%`} />
+                    </td>
+
+                    {/* Reasoning */}
+                    <td className="px-6 py-4 max-w-[380px]">
+                      <p className="text-xs text-slate-600 leading-relaxed line-clamp-3">
+                        {c.reasoning}
+                      </p>
+                    </td>
+
+                    {/* Job title */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="inline-flex items-center text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200 px-2.5 py-1 rounded-full">
+                        {c.job_title}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {/* ── Success Toast ────────────────────────────────────────────────────── */}
+      {notifySuccess && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-start gap-3 bg-slate-900 border border-emerald-500/30 text-white px-5 py-4 rounded-2xl shadow-2xl shadow-black/30 max-w-sm">
+          <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center shrink-0 mt-0.5">
+            <CheckCircle2 size={16} className="text-emerald-400" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-white">Credentials dispatched</p>
+            <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
+              Assessment invitations sent to all authorised internal candidates. They will appear in the pipeline below.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       <div className="card overflow-x-auto">

@@ -3,8 +3,8 @@ import { FileText, Users, LogOut, Briefcase } from 'lucide-react'
 import clsx from 'clsx'
 
 const navItems = [
-  { to: '/jd',         icon: FileText, label: 'JD Generator'    },
-  { to: '/match',      icon: Users,    label: 'Resume Matcher'  },
+  { to: '/jd',         icon: FileText,  label: 'JD Generator'   },
+  { to: '/match',      icon: Users,     label: 'Resume Matcher' },
   { to: '/candidates', icon: Briefcase, label: 'Candidates'     },
 ]
 

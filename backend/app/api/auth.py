@@ -15,6 +15,27 @@ SECRET_KEY = os.getenv("SECRET_KEY", "hire-ai-candidate-secret-change-in-prod")
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_HOURS = 8
 
+# Mock manager accounts for demo
+MOCK_MANAGERS = {
+    "hw_demo":     {"name": "Vinay",  "department": "Hardware"},
+    "design_demo": {"name": "Priya",  "department": "Design"},
+    "hr_demo":     {"name": "Rahul",  "department": "HR"},
+}
+MOCK_MANAGER_PASSWORD = "password123"
+
+
+class ManagerLoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+@router.post("/api/login")
+def manager_login(request: ManagerLoginRequest):
+    user = MOCK_MANAGERS.get(request.username)
+    if not user or request.password != MOCK_MANAGER_PASSWORD:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    return {"success": True, "user": user}
+
 
 def _create_token(candidate_id: int) -> str:
     expire = datetime.now(timezone.utc) + timedelta(hours=TOKEN_EXPIRE_HOURS)
