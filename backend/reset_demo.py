@@ -1,44 +1,30 @@
+"""
+Reset cache and candidates without deleting the DB file.
+Run while uvicorn is stopped. Safe to use repeatedly.
+"""
 import sqlite3
 import shutil
-import os
+from pathlib import Path
 
-# 1. Clear SQLite Database (Keeps the schema, deletes the rows)
-def clear_sqlite():
-    print("Clearing SQLite database...")
-    conn = sqlite3.connect('recruit.db') # Update with your actual DB filename
-    cursor = conn.cursor()
-    
-    # Disable foreign keys temporarily so we can truncate
-    cursor.execute("PRAGMA foreign_keys = OFF;")
-    cursor.execute("DELETE FROM candidates;")
-    cursor.execute("DELETE FROM jobs;")
-    # Add any other tables like 'assessment_checkpoints' if needed
-    
-    cursor.execute("PRAGMA foreign_keys = ON;")
-    conn.commit()
-    conn.close()
-    print("✓ SQLite tables emptied.")
+BACKEND_DIR = Path(__file__).parent
+DB_PATH = BACKEND_DIR / "recruit.db"
+CHROMA_DIR = BACKEND_DIR / "chroma_db"  # adjust if your folder is named differently
 
-# 2. Clear Uploaded Resumes
-def clear_uploads():
-    print("Clearing uploads folder...")
-    upload_dir = "./uploads"
-    if os.path.exists(upload_dir):
-        shutil.rmtree(upload_dir)
-    os.makedirs(upload_dir, exist_ok=True)
-    print("✓ Uploads folder reset.")
+# 1. Wipe relevant tables, keep schema
+conn = sqlite3.connect(DB_PATH)
+cur = conn.cursor()
+cur.execute("DELETE FROM match_score_cache;")
+cur.execute("DELETE FROM candidates;")
+cur.execute("DELETE FROM jobs;")
+conn.commit()
+conn.close()
+print("✓ Cleared match_score_cache, candidates, jobs tables")
 
-# 3. Clear ChromaDB Vector Store
-def clear_chroma():
-    print("Clearing ChromaDB...")
-    chroma_dir = "./chroma_db" # Update if your Chroma path is different
-    if os.path.exists(chroma_dir):
-        shutil.rmtree(chroma_dir)
-        print("✓ ChromaDB state deleted.")
+# 2. Wipe ChromaDB (force fresh)
+if CHROMA_DIR.exists():
+    shutil.rmtree(CHROMA_DIR)
+    print(f"✓ Deleted {CHROMA_DIR}")
+else:
+    print(f"  {CHROMA_DIR} not found, skipping")
 
-if __name__ == "__main__":
-    print("--- Starting Demo Reset ---")
-    clear_sqlite()
-    clear_uploads()
-    clear_chroma()
-    print("--- Reset Complete! Ready for Demo. ---")
+print("\nDone. Restart uvicorn — it will recreate empty tables and ChromaDB.")

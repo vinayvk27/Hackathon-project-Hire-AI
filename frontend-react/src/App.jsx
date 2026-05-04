@@ -3,12 +3,14 @@ import Login            from './pages/Login'
 import JDGenerator      from './pages/JDGenerator'
 import ResumeMatcher    from './pages/ResumeMatcher'
 import Candidates       from './pages/Candidates'
+import JobsList         from './pages/JobsList'
 import CandidateLogin      from './pages/CandidateLogin'
 import CandidateDashboard  from './pages/CandidateDashboard'
 import Assessment          from './pages/Assessment'
 import AssessmentResult from './pages/AssessmentResult'
-import VideoInterview   from './pages/VideoInterview'
-import Layout           from './components/Layout'
+import VideoInterview      from './pages/VideoInterview'
+import PipelineDashboard   from './pages/PipelineDashboard'
+import Layout              from './components/Layout'
 
 const PrivateRoute = ({ children }) => {
   const auth = localStorage.getItem('hire_ai_auth')
@@ -44,8 +46,10 @@ export default function App() {
         >
           <Route index element={<Navigate to="/jd" replace />} />
           <Route path="jd"      element={<JDGenerator />} />
+          <Route path="jobs"    element={<JobsList />} />
           <Route path="match"   element={<ResumeMatcher />} />
           <Route path="candidates" element={<Candidates />} />
+          <Route path="pipeline"  element={<PipelineDashboard />} />
         </Route>
 
         {/* Candidate Portal */}

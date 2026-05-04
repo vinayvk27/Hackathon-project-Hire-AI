@@ -12,6 +12,9 @@ from app.api import assessment
 from app.api import interview
 from app.api import internal
 from app.api import budget
+from app.api import external
+from app.api import pipeline
+from app.api import global_match
 
 from app.database import engine, Base
 
@@ -40,4 +43,7 @@ app.include_router(audio.router, prefix="/audio")
 app.include_router(assessment.router, prefix="/assessment")
 app.include_router(interview.router, prefix="/interview")
 app.include_router(internal.router, prefix="/api/internal")
+app.include_router(external.router, prefix="/api/external")
 app.include_router(budget.router, prefix="/api")
+app.include_router(pipeline.router, prefix="/pipeline")
+app.include_router(global_match.router, prefix="/api/match")

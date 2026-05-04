@@ -1,52 +1,23 @@
-import os
-import json
+import logging
+
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from openai import OpenAI
 
 from app.database import get_db
 from app.models import Job
+from app.services.llm_evaluator import evaluate_candidate
+from app.services.mcp_router import route_jd_intent, get_system_prompt_by_domain
+from app.services.score_cache import get_score, set_score
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-_openai = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-_INTERNAL_MATCH_PROMPT = """\
-You are an internal talent-placement engine. Given a job description and an \
-employee's skills summary, assess how well the employee fits the role.
-
-Return ONLY valid JSON with exactly these keys:
-{
-  "score": <integer 0-100>,
-  "reasoning": "<2-3 sentence explanation>"
-}
-"""
 
 
 class MatchRequest(BaseModel):
     job_id: int
 
-
-def _score_employee(skills_summary: str, jd_text: str) -> dict:
-    """Score one bench employee against a JD. Returns {score, reasoning}."""
-    try:
-        response = _openai.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": _INTERNAL_MATCH_PROMPT},
-                {"role": "user", "content": f"JOB DESCRIPTION:\n{jd_text}\n\nEMPLOYEE SKILLS:\n{skills_summary}"},
-            ],
-            temperature=0.1,
-        )
-        content = response.choices[0].message.content.strip()
-        if content.startswith("```"):
-            content = content.split("```")[1]
-            if content.startswith("json"):
-                content = content[4:]
-        return json.loads(content)
-    except Exception as e:
-        return {"score": 0, "reasoning": f"Evaluation failed: {e}"}
 
 BENCH_EMPLOYEES = [
     {
@@ -102,22 +73,52 @@ def get_bench_employees():
 def match_internal_candidates(payload: MatchRequest, db: Session = Depends(get_db)):
     """
     Score every bench employee against the saved JD and return ranked matches.
+    Results are written to score_cache on first call; subsequent calls are cache hits.
     Payload: {"job_id": <int>}
+    Response shape: [{"name": str, "score": int, "reasoning": str}]  — unchanged.
     """
     job = db.query(Job).filter(Job.id == payload.job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail=f"Job {payload.job_id} not found")
 
+    job_id = payload.job_id
+    skills_clause = ", ".join(job.required_skills or [])
     jd_text = f"{job.title}\n\n{job.description}"
+    if skills_clause:
+        jd_text += f"\nRequired Skills: {skills_clause}"
 
-    results = []
+    domain        = route_jd_intent(jd_text)
+    system_prompt = get_system_prompt_by_domain(domain)
+
+    results: list[dict] = []
+    cache_hits = cache_misses = 0
+
     for emp in BENCH_EMPLOYEES:
-        evaluation = _score_employee(emp["skills_summary"], jd_text)
+        ckey   = f"internal:{emp['id']}"
+        cached = get_score(db, job_id, ckey)
+
+        if cached:
+            cache_hits += 1
+            llm_eval = cached["evaluation"]
+        else:
+            cache_misses += 1
+            llm_eval = evaluate_candidate(emp["skills_summary"], jd_text, system_prompt)
+            set_score(
+                db, job_id, ckey, "internal",
+                float(llm_eval.get("overall_score", 0)),
+                llm_eval,
+            )
+
         results.append({
-            "name": emp["name"],
-            "score": evaluation.get("score", 0),
-            "reasoning": evaluation.get("reasoning", ""),
+            "name":      emp["name"],
+            "score":     llm_eval.get("overall_score", 0),
+            "reasoning": llm_eval.get("summary", ""),
         })
+
+    logger.info(
+        "/match/internal job_id=%d: cache_hits=%d, cache_misses=%d, llm_calls=%d",
+        job_id, cache_hits, cache_misses, cache_misses,
+    )
 
     results.sort(key=lambda x: x["score"], reverse=True)
     return results

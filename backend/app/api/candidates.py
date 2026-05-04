@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from app.services.vector_store import VectorStoreService
 from app.services.mcp_router import route_jd_intent, get_system_prompt_by_domain
 from app.services.llm_evaluator import evaluate_candidate
+from app.services.score_cache import set_score
 from app.database import SessionLocal
 from app.models import Job, Candidate
 from app.models.candidate import generate_candidate_credentials, username_from_name
@@ -136,6 +137,22 @@ def match_candidates(job_id: int):
             db.add(candidate)
             db.commit()
             db.refresh(candidate)
+
+            # Write to shared cache so /match/global can see this candidate.
+            # Wrapped so a cache failure never breaks the legacy hire flow.
+            try:
+                candidate_key = f"external:{filename}"
+                set_score(
+                    db=db,
+                    job_id=job_id,
+                    candidate_key=candidate_key,
+                    source="external",
+                    score=llm_eval.get("overall_score", 0.0),
+                    evaluation=llm_eval,
+                )
+                VectorStoreService.patch_job_metadata(filename, job_id)
+            except Exception:
+                pass
 
             match["username"] = username
             match["password"] = password

@@ -15,6 +15,7 @@ export default defineConfig({
       '/audio':      { target: 'http://127.0.0.1:8001', changeOrigin: true },
       '/assessment': { target: 'http://127.0.0.1:8001', changeOrigin: true },
       '/interview':  { target: 'http://127.0.0.1:8001', changeOrigin: true },
+      '/pipeline':   { target: 'http://127.0.0.1:8001', changeOrigin: true },
     },
   },
 })

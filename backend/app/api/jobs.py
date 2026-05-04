@@ -56,10 +56,19 @@ def generate_jd(request: GenerateJDRequest):
 def list_jobs(db: Session = Depends(get_db)):
     """
     Returns all jobs sorted by newest first (descending by id).
-    Payload is intentionally light: id and title only.
+    Returns full details so consumers can render and export without extra round trips.
     """
     jobs = db.query(Job).order_by(Job.id.desc()).all()
-    return [{"id": job.id, "title": job.title} for job in jobs]
+    return [
+        {
+            "id": job.id,
+            "title": job.title,
+            "description": job.description,
+            "required_skills": job.required_skills or [],
+            "experience_level": job.experience_level or "",
+        }
+        for job in jobs
+    ]
 
 
 @router.post("/create")

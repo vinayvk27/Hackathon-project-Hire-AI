@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.logic.interview_manager import get_next_response
 from app.models.candidate import Candidate
+from app.services.report_generator import generate_candidate_report
 from app.utils.media import (
     background_behavior_analysis,
     generate_audio,
@@ -29,6 +30,7 @@ _openai = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # In-memory stores (keyed by str(candidate_id))
 _behavior_logs: dict[str, list[str]] = {}
 _recommendations: dict[int, dict] = {}   # cached hire/no-hire per candidate
+_dashboards: dict[int, dict] = {}        # cached dashboard data per candidate
 
 
 # ---------------------------------------------------------------------------
@@ -105,6 +107,10 @@ def get_interview_report(candidate_id: int, db: Session = Depends(get_db)):
             candidate.name, summary, logs
         )
 
+    # Cache dashboard data
+    if candidate_id not in _dashboards:
+        _dashboards[candidate_id] = generate_candidate_report(candidate)
+
     return {
         "candidate_id":     candidate_id,
         "name":             candidate.name,
@@ -113,6 +119,7 @@ def get_interview_report(candidate_id: int, db: Session = Depends(get_db)):
         "proctoring_logs":  logs,
         "proctoring_score": getattr(candidate, "proctoring_score", None),
         "recommendation":   _recommendations[candidate_id],
+        "dashboard":        _dashboards[candidate_id],
     }
 
 

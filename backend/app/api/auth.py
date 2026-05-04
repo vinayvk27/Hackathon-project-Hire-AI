@@ -34,7 +34,8 @@ def manager_login(request: ManagerLoginRequest):
     user = MOCK_MANAGERS.get(request.username)
     if not user or request.password != MOCK_MANAGER_PASSWORD:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-    return {"success": True, "user": user}
+    token = _create_token_with_claims({"sub": request.username, "role": "hr_manager", "name": user["name"]})
+    return {"success": True, "user": user, "access_token": token, "token_type": "bearer"}
 
 
 def _create_token(candidate_id: int) -> str:

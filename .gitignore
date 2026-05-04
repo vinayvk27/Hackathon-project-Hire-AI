@@ -1,3 +1,14 @@
+# Node
+node_modules/
+frontend-react/node_modules/
+
+# Local Claude Code settings
+.claude/settings.local.json
+
+# Uploaded/test files
+backend/uploads/
+backend/mock_resumes/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
