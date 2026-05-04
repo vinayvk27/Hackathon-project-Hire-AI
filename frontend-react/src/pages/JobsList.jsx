@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Briefcase, Download, AlertCircle, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
+import {
+  Briefcase, Download, AlertCircle, Loader2,
+  ChevronDown, ChevronUp, Users, CheckCircle, XCircle,
+} from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import api from '../api/client'
+import clsx from 'clsx'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -20,6 +24,21 @@ function levelBadgeClass(level) {
   if (l.includes('junior') || l.includes('entry')) return 'bg-emerald-50 text-emerald-700 border-emerald-200'
   return 'bg-slate-100 text-slate-600 border-slate-200'
 }
+
+function scoreBadgeClass(score) {
+  if (score >= 85) return 'bg-green-100 text-green-700 border-green-200'
+  if (score >= 70) return 'bg-yellow-100 text-yellow-700 border-yellow-200'
+  if (score >= 50) return 'bg-orange-100 text-orange-700 border-orange-200'
+  return 'bg-red-100 text-red-700 border-red-200'
+}
+
+const POOL_SOURCES = [
+  { key: 'linkedin',  label: 'LinkedIn',  tab: 'text-[#0077B5] border-[#0077B5]', dot: 'bg-[#0077B5]'  },
+  { key: 'naukri',   label: 'Naukri',    tab: 'text-orange-600 border-orange-500', dot: 'bg-orange-500' },
+  { key: 'indeed',   label: 'Indeed',    tab: 'text-indigo-600 border-indigo-500', dot: 'bg-indigo-600' },
+  { key: 'referrals',label: 'Referrals', tab: 'text-emerald-700 border-emerald-600', dot: 'bg-emerald-600' },
+  { key: 'internals',label: 'Internals', tab: 'text-sky-700 border-sky-600', dot: 'bg-sky-700'         },
+]
 
 // ── PDF export ────────────────────────────────────────────────────────────────
 
@@ -64,7 +83,6 @@ function downloadJobPDF(job) {
     y += 12
   }
 
-  // Header band
   doc.setFillColor(15, 23, 42)
   doc.rect(0, 0, PAGE_W, 72, 'F')
   doc.setFontSize(20)
@@ -77,18 +95,15 @@ function downloadJobPDF(job) {
   doc.text(`Job ID: ${job.id}   •   Hire AI`, MARGIN, 58)
   y = 90
 
-  // Experience level
   if (job.experience_level) {
     writeSection('Experience Level')
     writeLine(job.experience_level, { size: 12, bold: true, color: [79, 70, 229] })
     y += 4
   }
 
-  // Description
   const description = (job.description || '').trim()
   if (description) {
     writeSection('Job Description')
-    // Render section headings (lines ending with :) as bold, rest as normal
     const paragraphs = description.split('\n')
     paragraphs.forEach(para => {
       const trimmed = para.trimEnd()
@@ -98,7 +113,6 @@ function downloadJobPDF(job) {
     })
   }
 
-  // Required skills
   const skills = parseSkills(job.required_skills)
   if (skills.length) {
     writeSection('Required Skills')
@@ -120,7 +134,6 @@ function downloadJobPDF(job) {
     y += Math.ceil(skills.length / cols) * 18 + 8
   }
 
-  // Footer
   const totalPages = doc.internal.getNumberOfPages()
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p)
@@ -135,10 +148,234 @@ function downloadJobPDF(job) {
   doc.save(filename)
 }
 
+// ── Pool matches sub-components ───────────────────────────────────────────────
+
+function CandidateRow({ entry }) {
+  const [open, setOpen] = useState(false)
+  const ev    = entry.evaluation || {}
+  const score = entry.score ?? 0
+  const name  = ev.candidate_name || entry.candidate_key?.split(':')[1] || '—'
+
+  return (
+    <>
+      <tr
+        className="hover:bg-sky-50/50 transition-colors cursor-pointer"
+        onClick={() => setOpen(v => !v)}
+      >
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-2">
+            {open ? <ChevronUp size={13} className="text-sky-400 shrink-0" /> : <ChevronDown size={13} className="text-sky-400 shrink-0" />}
+            <div>
+              <p className="text-sm font-semibold text-sky-900 leading-tight">{name}</p>
+              {ev.candidate_email && ev.candidate_email !== 'Not Provided' && (
+                <p className="text-xs text-sky-400 font-mono">{ev.candidate_email}</p>
+              )}
+            </div>
+          </div>
+        </td>
+        <td className="px-4 py-3">
+          <span className={clsx('text-sm font-bold px-2.5 py-0.5 rounded-full border', scoreBadgeClass(score))}>
+            {score}/100
+          </span>
+        </td>
+        <td className="px-4 py-3 max-w-[260px]">
+          <p className="text-xs text-sky-700/80 leading-relaxed line-clamp-2">{ev.summary || '—'}</p>
+        </td>
+        <td className="px-4 py-3">
+          <div className="flex flex-wrap gap-1">
+            {(ev.green_flags || []).slice(0, 2).map((f, i) => (
+              <span key={i} className="text-[10px] bg-green-50 text-green-700 border border-green-200 px-1.5 py-0.5 rounded-full">
+                {f.length > 30 ? f.slice(0, 30) + '…' : f}
+              </span>
+            ))}
+          </div>
+        </td>
+        <td className="px-4 py-3">
+          <div className="flex flex-wrap gap-1">
+            {(ev.red_flags || []).slice(0, 2).map((f, i) => (
+              <span key={i} className="text-[10px] bg-red-50 text-red-700 border border-red-100 px-1.5 py-0.5 rounded-full">
+                {f.length > 30 ? f.slice(0, 30) + '…' : f}
+              </span>
+            ))}
+          </div>
+        </td>
+      </tr>
+
+      {open && (
+        <tr className="bg-sky-50/40">
+          <td colSpan={5} className="px-6 py-4">
+            <div className="grid grid-cols-2 gap-6 text-xs">
+              <div>
+                <p className="font-semibold text-green-700 uppercase tracking-wider mb-2 flex items-center gap-1">
+                  <CheckCircle size={11} /> Green Flags
+                </p>
+                <ul className="space-y-1">
+                  {(ev.green_flags || []).map((f, i) => (
+                    <li key={i} className="text-sky-700 flex gap-1.5">
+                      <span className="text-green-500 shrink-0">✓</span>{f}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="font-semibold text-red-700 uppercase tracking-wider mb-2 flex items-center gap-1">
+                  <XCircle size={11} /> Red Flags
+                </p>
+                <ul className="space-y-1">
+                  {(ev.red_flags || []).map((f, i) => (
+                    <li key={i} className="text-sky-700 flex gap-1.5">
+                      <span className="text-red-500 shrink-0">✗</span>{f}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              {ev.technical_depth_critique && (
+                <div className="col-span-2">
+                  <p className="font-semibold text-sky-600 uppercase tracking-wider mb-1">Technical Depth</p>
+                  <p className="text-sky-700">{ev.technical_depth_critique}</p>
+                </div>
+              )}
+              {ev.missing_required_skills?.length > 0 && (
+                <div className="col-span-2">
+                  <p className="font-semibold text-sky-600 uppercase tracking-wider mb-2">Missing Skills</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {ev.missing_required_skills.map(s => (
+                      <span key={s} className="px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-100">{s}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  )
+}
+
+function PoolMatchesPanel({ jobId }) {
+  const [data, setData]         = useState(null)
+  const [loading, setLoading]   = useState(true)
+  const [activeSource, setActiveSource] = useState('linkedin')
+
+  useEffect(() => {
+    api.get(`/pool/matches/${jobId}`)
+      .then(r => {
+        setData(r.data)
+        // Auto-select first tab that has results
+        const first = POOL_SOURCES.find(s => (r.data.by_source?.[s.key]?.length ?? 0) > 0)
+        if (first) setActiveSource(first.key)
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [jobId])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-6 text-sky-400 gap-2 text-xs">
+        <Loader2 size={14} className="animate-spin" /> Loading pool matches…
+      </div>
+    )
+  }
+
+  if (!data) {
+    return <p className="text-xs text-sky-400 py-4 text-center">Could not load pool matches.</p>
+  }
+
+  const total = data.totals?.total ?? 0
+
+  if (total === 0) {
+    return (
+      <div className="py-6 text-center">
+        <Users size={28} className="mx-auto text-sky-200 mb-2" />
+        <p className="text-xs text-sky-400">No pool matches yet.</p>
+        <p className="text-xs text-sky-300 mt-1">Upload resumes in <strong>Talent Pool</strong> to trigger automatic matching.</p>
+      </div>
+    )
+  }
+
+  const activeCandidates = data.by_source?.[activeSource] ?? []
+
+  return (
+    <div className="space-y-3">
+      {/* Status + total */}
+      <div className="flex items-center justify-between text-xs text-sky-500">
+        <span>
+          Status: <span className={clsx(
+            'font-semibold',
+            data.status === 'Open'   && 'text-green-600',
+            data.status === 'Closed' && 'text-slate-500',
+            data.status === 'Hired'  && 'text-violet-600',
+          )}>{data.status}</span>
+        </span>
+        <span>{total} candidate{total !== 1 ? 's' : ''} matched across all pools</span>
+      </div>
+
+      {/* Source tabs */}
+      <div className="flex gap-1 border-b border-sky-100">
+        {POOL_SOURCES.map(src => {
+          const count = data.by_source?.[src.key]?.length ?? 0
+          const active = activeSource === src.key
+          return (
+            <button
+              key={src.key}
+              onClick={() => setActiveSource(src.key)}
+              className={clsx(
+                'px-3 py-2 text-xs font-semibold transition-colors border-b-2 -mb-px',
+                active
+                  ? `${src.tab} bg-transparent`
+                  : 'border-transparent text-slate-400 hover:text-slate-600',
+              )}
+            >
+              {src.label}
+              {count > 0 && (
+                <span className={clsx(
+                  'ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full',
+                  active ? `${src.dot} text-white` : 'bg-slate-100 text-slate-500',
+                )}>
+                  {count}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Candidate table */}
+      {activeCandidates.length === 0 ? (
+        <p className="text-xs text-sky-400 text-center py-4">
+          No matches from {POOL_SOURCES.find(s => s.key === activeSource)?.label} yet.
+        </p>
+      ) : (
+        <div className="rounded-xl overflow-hidden border border-sky-100 shadow-sm">
+          <table className="w-full text-sm">
+            <thead className="bg-sky-50 border-b border-sky-100">
+              <tr>
+                {['Candidate', 'Score', 'Summary', 'Green Flags', 'Red Flags'].map(h => (
+                  <th key={h} className="px-4 py-2.5 text-left text-[11px] font-semibold text-sky-500 uppercase tracking-wider">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-sky-50 bg-white">
+              {activeCandidates.map((entry, i) => (
+                <CandidateRow key={entry.candidate_key || i} entry={entry} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Job Card ──────────────────────────────────────────────────────────────────
 
 function JobCard({ job }) {
-  const [expanded, setExpanded] = useState(false)
+  const [expanded,     setExpanded]     = useState(false)
+  const [poolExpanded, setPoolExpanded] = useState(false)
+
   const skills = parseSkills(job.required_skills)
   const SKILL_PREVIEW = 5
 
@@ -150,6 +387,16 @@ function JobCard({ job }) {
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="text-base font-semibold text-slate-900 truncate">{job.title}</h3>
             <span className="text-xs text-slate-400 font-mono">#{job.id}</span>
+            {job.status && (
+              <span className={clsx(
+                'text-[11px] font-semibold px-2 py-0.5 rounded-full border',
+                job.status === 'Open'   && 'bg-green-50 text-green-700 border-green-200',
+                job.status === 'Closed' && 'bg-slate-100 text-slate-500 border-slate-200',
+                job.status === 'Hired'  && 'bg-violet-50 text-violet-700 border-violet-200',
+              )}>
+                {job.status}
+              </span>
+            )}
           </div>
           {job.experience_level && (
             <span className={`mt-1.5 inline-block text-xs font-medium px-2.5 py-0.5 rounded-full border ${levelBadgeClass(job.experience_level)}`}>
@@ -171,10 +418,7 @@ function JobCard({ job }) {
       {skills.length > 0 && (
         <div className="px-5 pb-3 flex flex-wrap gap-1.5">
           {(expanded ? skills : skills.slice(0, SKILL_PREVIEW)).map((skill, i) => (
-            <span
-              key={i}
-              className="text-xs bg-indigo-50 text-indigo-700 border border-indigo-100 px-2 py-0.5 rounded-full"
-            >
+            <span key={i} className="text-xs bg-indigo-50 text-indigo-700 border border-indigo-100 px-2 py-0.5 rounded-full">
               {skill}
             </span>
           ))}
@@ -204,6 +448,22 @@ function JobCard({ job }) {
           )}
         </>
       )}
+
+      {/* Pool Matches toggle */}
+      <button
+        onClick={() => setPoolExpanded(v => !v)}
+        className="w-full flex items-center justify-center gap-1.5 text-xs text-sky-500 hover:text-sky-700 py-2.5 border-t border-sky-100 transition-colors font-medium"
+      >
+        <Users size={13} />
+        {poolExpanded ? 'Hide' : 'View'} Pool Matches
+        {poolExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+      </button>
+
+      {poolExpanded && (
+        <div className="border-t border-sky-100 px-5 py-4">
+          <PoolMatchesPanel jobId={job.id} />
+        </div>
+      )}
     </div>
   )
 }
@@ -231,18 +491,16 @@ export default function JobsList() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      {/* Page header */}
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
           <Briefcase size={20} className="text-sky-500" />
           <h1 className="text-xl font-bold text-slate-900">Saved Job Descriptions</h1>
         </div>
         <p className="text-sm text-slate-500">
-          {jobs.length} JD{jobs.length !== 1 ? 's' : ''} saved — click <strong>PDF</strong> on any card to export.
+          {jobs.length} JD{jobs.length !== 1 ? 's' : ''} saved — click <strong>PDF</strong> to export, <strong>View Pool Matches</strong> to see auto-matched candidates.
         </p>
       </div>
 
-      {/* Search */}
       <div className="mb-5">
         <input
           type="text"
@@ -253,7 +511,6 @@ export default function JobsList() {
         />
       </div>
 
-      {/* States */}
       {loading && (
         <div className="flex items-center justify-center py-24 text-slate-400">
           <Loader2 size={28} className="animate-spin mr-3" />
@@ -275,7 +532,6 @@ export default function JobsList() {
         </div>
       )}
 
-      {/* Grid */}
       {!loading && !error && filtered.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2">
           {filtered.map(job => <JobCard key={job.id} job={job} />)}

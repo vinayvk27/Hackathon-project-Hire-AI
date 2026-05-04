@@ -59,7 +59,7 @@ export default function Home() {
     setLoading(true);
     try {
       if (loginType === 'candidate') {
-        const res = await api.post('/assessment/login', { email: username, password });
+        const res = await api.post('/assessment/login', { username, password });
         const { access_token, candidate_id, name, status } = res.data;
         const ALLOWED = ['Shortlisted', 'Screening_Done', 'Assessed', 'Tech_Done'];
         if (!ALLOWED.includes(status)) {
@@ -300,12 +300,12 @@ export default function Home() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1.5 ml-1">
-                    {loginType === 'candidate' ? 'Email Address' : 'Username'}
+                    Username
                   </label>
                   <input
                     className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all text-gray-900 font-medium placeholder:text-gray-400 text-sm"
-                    type={loginType === 'candidate' ? 'email' : 'text'}
-                    placeholder={loginType === 'candidate' ? 'you@example.com' : 'hw_demo'}
+                    type="text"
+                    placeholder={loginType === 'candidate' ? 'e.g. ananya_iyer' : 'hw_demo'}
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     required
@@ -352,7 +352,7 @@ export default function Home() {
                   {loginType === 'candidate' ? (
                     <div className="text-center">
                       <p className="text-sky-800 text-xs font-bold mb-1">Candidate login</p>
-                      <p className="text-sky-600 text-xs font-medium">Use your registered email and password.</p>
+                      <p className="text-sky-600 text-xs font-medium">Use your registered username and password.</p>
                     </div>
                   ) : (
                     <div className="text-center flex flex-col items-center">

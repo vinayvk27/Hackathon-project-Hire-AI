@@ -74,7 +74,7 @@ def _invitation_html(candidate_name: str, job_title: str, username: str, temp_pa
 <div class="wrap">
   <div class="hdr">
     <div class="hdr-tag">Internal Mobility Programme &nbsp;|&nbsp; Confidential</div>
-    <h1>You've Been Selected for an AI-Matched Opportunity</h1>
+    <h1>You've Been Shortlisted for an Opportunity</h1>
     <p>This communication contains access credentials. Handle with care.</p>
   </div>
   <div class="body">
@@ -190,16 +190,17 @@ class CandidateRegisterRequest(BaseModel):
     match_score:   float = 0.0
 
 class CandidateLoginRequest(BaseModel):
-    email:    str
+    username: str
     password: str
 
 class ShortlistRequest(BaseModel):
     candidate_id: int
 
 class InternalCandidateItem(BaseModel):
-    name:   str
-    email:  str
-    job_id: int
+    name:        str
+    email:       str
+    job_id:      int
+    match_score: float = 0.0
 
 class NotifyRequest(BaseModel):
     candidates: List[InternalCandidateItem]
@@ -276,6 +277,7 @@ def notify_internal_candidates(request: NotifyRequest, db: Session = Depends(get
             existing.password      = temp_password
             existing.password_hash = temp_password
             existing.status        = "Shortlisted"
+            existing.match_score   = item.match_score
             candidate = existing
         else:
             username = username_base
@@ -290,7 +292,7 @@ def notify_internal_candidates(request: NotifyRequest, db: Session = Depends(get
                 password_hash = temp_password,
                 resume_source = "internal",
                 job_id        = item.job_id,
-                match_score   = 0.0,
+                match_score   = item.match_score,
                 status        = "Shortlisted",
             )
             db.add(candidate)
@@ -361,12 +363,12 @@ def list_candidates(job_id: Optional[int] = None, db: Session = Depends(get_db))
 
 @router.post("/login")
 def candidate_login(request: CandidateLoginRequest, db: Session = Depends(get_db)):
-    candidate = db.query(Candidate).filter(Candidate.email == request.email).first()
+    candidate = db.query(Candidate).filter(Candidate.username == request.username).first()
     if not candidate:
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+        raise HTTPException(status_code=401, detail="Invalid username or password")
     # Simple demo-ready string match
     if candidate.password != request.password and candidate.password_hash != request.password:
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+        raise HTTPException(status_code=401, detail="Invalid username or password")
     token = _create_token(candidate.id)
     return {
         "access_token": token,

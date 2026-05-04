@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Fragment } from 'react'
 import {
   Clock, Award, RefreshCw, FileText, X, CheckCircle2,
   XCircle, ShieldCheck, MessageSquare, Loader2, AlertCircle,
@@ -11,6 +11,16 @@ import CandidateReportDashboard from '../components/CandidateReportDashboard'
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
+
+const SOURCE_BADGE = {
+  internal:  'bg-sky-100    text-sky-700    border-sky-200',
+  external:  'bg-green-100  text-green-700  border-green-200',
+  linkedin:  'bg-blue-100   text-blue-700   border-blue-200',
+  naukri:    'bg-orange-100 text-orange-700 border-orange-200',
+  indeed:    'bg-indigo-100 text-indigo-800 border-indigo-200',
+  referrals: 'bg-purple-100 text-purple-700 border-purple-200',
+  internals: 'bg-teal-100   text-teal-700   border-teal-200',
+}
 
 const STATUS_STYLES = {
   Applied:     'bg-sky-100 text-sky-600 border border-sky-200',
@@ -362,7 +372,8 @@ export default function Candidates() {
   // ── Unified AI-Recommended Candidates ────────────────────────────────────
   const [unified,          setUnified]          = useState(null)
   const [unifiedLoading,   setUnifiedLoading]   = useState(true)
-  const [unifiedJobId,     setUnifiedJobId]     = useState(null)
+  const [jobs,             setJobs]             = useState([])
+  const [selectedJobId,    setSelectedJobId]    = useState(null)
   const [selected,         setSelected]         = useState(new Set())
   const [authorizing,      setAuthorizing]      = useState(false)
   const [authorizeSuccess, setAuthorizeSuccess] = useState(false)
@@ -379,26 +390,36 @@ export default function Candidates() {
     }
   }
 
-  const fetchUnifiedCandidates = async () => {
+  const fetchJobs = async () => {
+    try {
+      const res     = await api.get('/jobs/list')
+      const jobList = res.data ?? []
+      setJobs(jobList)
+      // Default: highest job_id with status="Open"; fall back to first job
+      const openJobs  = jobList.filter(j => j.status === 'Open')
+      const defaultJob = openJobs.length > 0
+        ? openJobs.reduce((a, b) => (b.id > a.id ? b : a))
+        : jobList[0]
+      if (defaultJob) setSelectedJobId(prev => prev ?? defaultJob.id)
+    } catch {
+      setJobs([])
+    }
+  }
+
+  const fetchMatches = async (jobId) => {
+    if (!jobId) return
     setUnifiedLoading(true)
     try {
-      const jobsRes  = await api.get('/jobs/list')
-      const firstJob = jobsRes.data?.[0]
-      if (!firstJob) { setUnifiedLoading(false); return }
-      setUnifiedJobId(firstJob.id)
-
       const [globalRes, benchRes] = await Promise.all([
-        api.post('/api/match/global', { job_id: firstJob.id, threshold: 30, limit: 20 }),
+        api.post('/api/match/global', { job_id: jobId, threshold: 30, limit: 20 }),
         api.get('/api/internal/bench'),
       ])
 
-      // Build bench map: bench-id → { name, email }
       const benchMap = {}
       for (const b of benchRes.data) {
         benchMap[b.id] = { name: b.name, email: b.email }
       }
 
-      // Enrich internal candidates with real names/emails from bench data
       const enriched = {
         ...globalRes.data,
         matches: globalRes.data.matches.map(m => {
@@ -431,15 +452,16 @@ export default function Candidates() {
       const selectedMatches = (unified?.matches ?? []).filter(m => selected.has(m.candidate_key))
       await api.post('/assessment/candidates/notify', {
         candidates: selectedMatches.map(m => ({
-          name:   m.candidate_name,
-          email:  m.candidate_email,
-          job_id: unifiedJobId,
+          name:        m.candidate_name,
+          email:       m.candidate_email,
+          job_id:      selectedJobId,
+          match_score: m.overall_score ?? 0,
         })),
       })
       setAuthorizeSuccess(true)
       setSelected(new Set())
       fetchCandidates()
-      fetchUnifiedCandidates()
+      fetchMatches(selectedJobId)
       setTimeout(() => setAuthorizeSuccess(false), 6000)
     } catch (err) {
       console.error('Authorize failed:', err)
@@ -449,11 +471,12 @@ export default function Candidates() {
   }
 
   const toggleAll = () => {
-    const matches = unified?.matches ?? []
-    if (selected.size === matches.length && matches.length > 0) {
+    const authEmails = new Set(candidates.map(c => c.email))
+    const visibleMatches = (unified?.matches ?? []).filter(m => !authEmails.has(m.candidate_email))
+    if (selected.size === visibleMatches.length && visibleMatches.length > 0) {
       setSelected(new Set())
     } else {
-      setSelected(new Set(matches.map(m => m.candidate_key)))
+      setSelected(new Set(visibleMatches.map(m => m.candidate_key)))
     }
   }
 
@@ -467,8 +490,12 @@ export default function Candidates() {
 
   useEffect(() => {
     fetchCandidates()
-    fetchUnifiedCandidates()
+    fetchJobs()
   }, [])
+
+  useEffect(() => {
+    if (selectedJobId) fetchMatches(selectedJobId)
+  }, [selectedJobId])
 
   const shortlist = async (id) => {
     setActionId(id)
@@ -482,11 +509,12 @@ export default function Candidates() {
     }
   }
 
-  const interviewedCount = candidates.filter(
-    (c) => c.interview_status === 'Interview_Complete'
-  ).length
+  const filteredCandidates = selectedJobId
+    ? candidates.filter(c => c.job_id === selectedJobId)
+    : candidates
 
-  const matches     = unified?.matches ?? []
+  const authorizedEmails = new Set(candidates.map(c => c.email))
+  const matches     = (unified?.matches ?? []).filter(m => !authorizedEmails.has(m.candidate_email))
   const allSelected = matches.length > 0 && selected.size === matches.length
   const someSelected = selected.size > 0 && !allSelected
 
@@ -526,10 +554,10 @@ export default function Candidates() {
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
-            { label: 'Total',       value: candidates.length,                                          color: 'text-sky-800'     },
-            { label: 'Shortlisted', value: candidates.filter(c => c.status === 'Shortlisted').length,  color: 'text-blue-700'    },
-            { label: 'Assessed',    value: candidates.filter(c => c.status === 'Assessed').length,     color: 'text-green-700'   },
-            { label: 'Interviewed', value: interviewedCount,                                           color: 'text-emerald-700' },
+            { label: 'Total',       value: filteredCandidates.length,                                                                                                                                                                              color: 'text-sky-800'     },
+            { label: 'Shortlisted', value: filteredCandidates.filter(c => c.status === 'Shortlisted').length,                                                                                                                                      color: 'text-blue-700'    },
+            { label: 'Assessed',    value: filteredCandidates.filter(c => c.interview_status === 'Tech_Done' || c.interview_status === 'Screening_Done' || c.interview_status === 'Interview_Complete').length,                                     color: 'text-green-700'   },
+            { label: 'Interviewed', value: filteredCandidates.filter(c => c.interview_status === 'Interview_Complete').length,                                                                                                                      color: 'text-emerald-700' },
           ].map(({ label, value, color }) => (
             <div key={label} className="bg-white/90 backdrop-blur-sm rounded-2xl border border-sky-200/80 shadow-lg shadow-sky-900/10 p-4 text-center">
               <p className={`text-2xl font-bold ${color}`}>{value}</p>
@@ -557,13 +585,46 @@ export default function Candidates() {
               </div>
             </div>
             <button
-              onClick={fetchUnifiedCandidates}
+              onClick={() => fetchMatches(selectedJobId)}
               disabled={unifiedLoading}
               className="flex items-center gap-2 text-sky-700 bg-white border border-sky-200 rounded-xl hover:bg-sky-50 shadow-sm px-4 py-2 text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-wait shrink-0 ml-4"
             >
               <RefreshCw size={15} className={unifiedLoading ? 'animate-spin' : ''} />
               Refresh
             </button>
+          </div>
+
+          {/* JD selector */}
+          <div className="flex flex-wrap items-center gap-3 px-6 py-3 border-b border-sky-100 bg-white">
+            <label className="text-sm font-medium text-sky-700 shrink-0">Viewing JD:</label>
+            <select
+              value={selectedJobId ?? ''}
+              onChange={e => {
+                setSelectedJobId(Number(e.target.value))
+                setSelected(new Set())
+              }}
+              disabled={unifiedLoading || jobs.length === 0}
+              className="text-sm text-sky-900 bg-white border border-sky-200 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-sky-400 disabled:opacity-60 disabled:cursor-wait max-w-sm"
+            >
+              {jobs.map(j => (
+                <option key={j.id} value={j.id}>
+                  {j.title} (#{j.id}) — {j.status}
+                </option>
+              ))}
+            </select>
+            {selectedJobId && (() => {
+              const job = jobs.find(j => j.id === selectedJobId)
+              return job ? (
+                <span className="text-xs text-sky-500">
+                  Showing matches for:{' '}
+                  <strong className="text-sky-700">{job.title}</strong>
+                  {' '}— Status:{' '}
+                  <strong className={job.status === 'Open' ? 'text-emerald-600' : 'text-sky-600'}>
+                    {job.status}
+                  </strong>
+                </span>
+              ) : null
+            })()}
           </div>
 
           {/* Action bar */}
@@ -671,12 +732,10 @@ export default function Candidates() {
                   {matches.map((m) => {
                     const isChecked   = selected.has(m.candidate_key)
                     const reasoning   = m.llm_evaluation?.reasoning ?? m.llm_evaluation?.summary ?? ''
-                    const sourceStyle = m.source === 'internal'
-                      ? 'bg-sky-100 text-sky-700 border-sky-200'
-                      : 'bg-green-100 text-green-700 border-green-200'
+                    const sourceStyle = SOURCE_BADGE[m.source] ?? 'bg-sky-100 text-sky-700 border-sky-200'
                     return (
                       <tr
-                        key={m.candidate_key}
+                        key={`${m.source}:${m.candidate_key}`}
                         onClick={() => toggleRow(m.candidate_key)}
                         className={clsx(
                           'cursor-pointer transition-colors duration-100',
@@ -698,8 +757,8 @@ export default function Candidates() {
                           <p className="text-xs text-sky-400 mt-0.5 font-mono">{m.candidate_email}</p>
                         </td>
                         <td className="px-5 py-4 whitespace-nowrap">
-                          <span className={clsx('px-2.5 py-0.5 rounded-full text-xs font-bold border', sourceStyle)}>
-                            {m.source === 'internal' ? 'Internal' : 'External'}
+                          <span className={clsx('px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize', sourceStyle)}>
+                            {m.source}
                           </span>
                         </td>
                         <td className="px-5 py-4">
@@ -771,9 +830,8 @@ export default function Candidates() {
                   const hasDetails     = c.reasoning_summary || c.interview_logs?.length
 
                   return (
-                    <>
+                    <Fragment key={c.id}>
                     <tr
-                      key={c.id}
                       className={clsx(
                         'transition-colors duration-100 group',
                         isExpanded ? 'bg-sky-50/60' : 'hover:bg-sky-50/50',
@@ -954,7 +1012,7 @@ export default function Candidates() {
                         </td>
                       </tr>
                     )}
-                    </>
+                    </Fragment>
                   )
                 })}
               </tbody>

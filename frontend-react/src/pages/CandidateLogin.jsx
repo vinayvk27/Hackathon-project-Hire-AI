@@ -4,7 +4,7 @@ import { UserCheck } from 'lucide-react'
 import api from '../api/client'
 
 export default function CandidateLogin() {
-  const [email,    setEmail]    = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error,    setError]    = useState('')
   const [loading,  setLoading]  = useState(false)
@@ -15,7 +15,7 @@ export default function CandidateLogin() {
     setError('')
     setLoading(true)
     try {
-      const res = await api.post('/assessment/login', { email, password })
+      const res = await api.post('/assessment/login', { username, password })
       const { access_token, candidate_id, name, status } = res.data
 
       const ALLOWED = ['Shortlisted', 'Screening_Done', 'Assessed', 'Tech_Done']
@@ -30,7 +30,7 @@ export default function CandidateLogin() {
       localStorage.setItem('candidate_status', status)
       navigate('/dashboard')
     } catch (err) {
-      setError(err.response?.data?.detail || 'Invalid email or password.')
+      setError(err.response?.data?.detail || 'Invalid username or password.')
     } finally {
       setLoading(false)
     }
@@ -50,13 +50,13 @@ export default function CandidateLogin() {
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Username</label>
               <input
                 className="input"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                type="text"
+                placeholder="e.g. ananya_iyer"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 required
               />
             </div>

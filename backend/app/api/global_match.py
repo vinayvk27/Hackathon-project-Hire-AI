@@ -25,11 +25,13 @@ def global_match(payload: GlobalMatchRequest, db: Session = Depends(get_db)):
     POST /api/match/global
     Body: {"job_id": 3, "threshold": 80.0, "limit": 5}
 
-    Read-only endpoint: returns cached internal + external scores for a job,
-    applies threshold, sorts descending, and slices to `limit`.
-    Makes ZERO LLM calls — if a candidate isn't in the cache they don't appear.
+    Read-only endpoint: returns ALL cached scores for a job (internal, external,
+    and all pool sources), applies threshold, sorts descending, and slices to
+    `limit`. Makes ZERO LLM calls — if a candidate isn't in the cache they don't
+    appear.
 
-    Run /api/internal/match and /api/external/match first to populate the cache.
+    Run /api/internal/match, /api/external/match, or /pool/upload to populate
+    the cache.
     """
     result = run_global_match(
         job_id=payload.job_id,

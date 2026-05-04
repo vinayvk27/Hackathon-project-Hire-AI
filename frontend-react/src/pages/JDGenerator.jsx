@@ -286,7 +286,7 @@ function DirectUploadForm() {
     setLoading(true)
     try {
       const sessionUser = JSON.parse(localStorage.getItem('user') || '{}')
-      await fetch('http://172.20.30.214:5678/webhook-test/request-hire', {
+      await fetch('http://172.20.10.3:5678/webhook-test/request-hire', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -472,7 +472,7 @@ export default function JDGenerator() {
     setLoading(true)
     try {
       const sessionUser = JSON.parse(localStorage.getItem('user') || '{}')
-      await fetch('http://172.20.30.214:5678/webhook-test/request-hire', {
+      await fetch('http://172.20.10.3:5678/webhook-test/request-hire', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

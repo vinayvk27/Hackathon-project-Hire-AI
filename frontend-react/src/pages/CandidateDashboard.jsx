@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Phone, FileText, Video, Users, Lock, ChevronRight, CheckCircle2, LogOut } from 'lucide-react'
+import { Phone, FileText, Video, Users, Lock, ChevronRight, CheckCircle2, LogOut, Leaf } from 'lucide-react'
 
 const STAGES = [
   {
@@ -19,7 +19,7 @@ const STAGES = [
     icon: FileText,
     activeStatus: 'Screening_Done',
     route: '/assessment',
-    color: 'blue',
+    color: 'sky',
   },
   {
     id: 3,
@@ -54,36 +54,32 @@ function stageState(stage, currentStatus) {
 
 const colorMap = {
   emerald: {
-    ring:        'ring-emerald-500',
-    bg:          'bg-emerald-600 hover:bg-emerald-700',
-    icon:        'bg-emerald-500/20 text-emerald-400',
+    bg:          'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400',
+    icon:        'bg-emerald-100 text-emerald-600',
     badge:       'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200',
-    actionBadge: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/40',
-    glowShadow:  '0 0 0 2px rgba(16,185,129,0.5), 0 0 28px rgba(16,185,129,0.25), 0 8px 32px rgba(0,0,0,0.5)',
+    actionBadge: 'bg-emerald-100 text-emerald-700 border border-emerald-300',
+    glowShadow:  '0 0 0 2px rgba(16,185,129,0.25), 0 8px 32px rgba(16,185,129,0.12), 0 4px 24px rgba(14,165,233,0.08)',
   },
-  blue: {
-    ring:        'ring-blue-500',
-    bg:          'bg-blue-600 hover:bg-blue-700',
-    icon:        'bg-blue-500/20 text-blue-400',
-    badge:       'bg-blue-50 text-blue-700 ring-1 ring-blue-200',
-    actionBadge: 'bg-blue-500/15 text-blue-400 border border-blue-500/40',
-    glowShadow:  '0 0 0 2px rgba(59,130,246,0.5), 0 0 28px rgba(59,130,246,0.25), 0 8px 32px rgba(0,0,0,0.5)',
+  sky: {
+    bg:          'bg-gradient-to-r from-sky-500 to-blue-500 hover:from-sky-400 hover:to-blue-400',
+    icon:        'bg-sky-100 text-sky-600',
+    badge:       'bg-sky-50 text-sky-700 ring-1 ring-sky-200',
+    actionBadge: 'bg-sky-100 text-sky-700 border border-sky-300',
+    glowShadow:  '0 0 0 2px rgba(14,165,233,0.25), 0 8px 32px rgba(14,165,233,0.12), 0 4px 24px rgba(14,165,233,0.08)',
   },
   violet: {
-    ring:        'ring-violet-500',
-    bg:          'bg-violet-600 hover:bg-violet-700',
-    icon:        'bg-violet-500/20 text-violet-400',
+    bg:          'bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-400 hover:to-purple-400',
+    icon:        'bg-violet-100 text-violet-600',
     badge:       'bg-violet-50 text-violet-700 ring-1 ring-violet-200',
-    actionBadge: 'bg-violet-500/15 text-violet-400 border border-violet-500/40',
-    glowShadow:  '0 0 0 2px rgba(139,92,246,0.5), 0 0 28px rgba(139,92,246,0.25), 0 8px 32px rgba(0,0,0,0.5)',
+    actionBadge: 'bg-violet-100 text-violet-700 border border-violet-300',
+    glowShadow:  '0 0 0 2px rgba(139,92,246,0.25), 0 8px 32px rgba(139,92,246,0.12), 0 4px 24px rgba(139,92,246,0.08)',
   },
   orange: {
-    ring:        'ring-orange-500',
-    bg:          'bg-orange-600 hover:bg-orange-700',
-    icon:        'bg-orange-500/20 text-orange-400',
+    bg:          'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400',
+    icon:        'bg-orange-100 text-orange-600',
     badge:       'bg-orange-50 text-orange-700 ring-1 ring-orange-200',
-    actionBadge: 'bg-orange-500/15 text-orange-400 border border-orange-500/40',
-    glowShadow:  '0 0 0 2px rgba(249,115,22,0.5), 0 0 28px rgba(249,115,22,0.25), 0 8px 32px rgba(0,0,0,0.5)',
+    actionBadge: 'bg-orange-100 text-orange-700 border border-orange-300',
+    glowShadow:  '0 0 0 2px rgba(249,115,22,0.25), 0 8px 32px rgba(249,115,22,0.12), 0 4px 24px rgba(249,115,22,0.08)',
   },
 }
 
@@ -92,8 +88,8 @@ const colorMap = {
 function deriveStatus(candidateStatus, interviewStatus) {
   if (interviewStatus === 'Interview_Complete' || interviewStatus === 'Tech_Done') return 'Tech_Done'
   if (interviewStatus === 'Screening_Done' && candidateStatus === 'Assessed')      return 'Assessed'
-  if (interviewStatus === 'Screening_Done')                                         return 'Screening_Done'
-  if (candidateStatus  === 'Shortlisted')                                           return 'Shortlisted'
+  if (interviewStatus === 'Screening_Done')                                        return 'Screening_Done'
+  if (candidateStatus  === 'Shortlisted')                                          return 'Shortlisted'
   return candidateStatus || 'Shortlisted'
 }
 
@@ -132,17 +128,26 @@ export default function CandidateDashboard({ status: propStatus }) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white">
+    <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-green-50 font-sans">
+      {/* Ambient glows */}
+      <div className="fixed top-0 left-[20%] w-[600px] h-[300px] bg-sky-300/15 rounded-full blur-[100px] pointer-events-none z-0" />
+      <div className="fixed bottom-0 right-[10%] w-[400px] h-[400px] bg-green-300/10 rounded-full blur-[120px] pointer-events-none z-0" />
+
       {/* Header */}
-      <header className="border-b border-slate-700/60 bg-slate-900/80 backdrop-blur sticky top-0 z-10">
+      <header className="relative z-10 border-b border-sky-200 bg-white/80 backdrop-blur-sm sticky top-0">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
-            <p className="text-xs text-slate-400 uppercase tracking-widest mb-0.5">Candidate Portal</p>
-            <h1 className="text-lg font-semibold">Welcome, {name}</h1>
+          <div className="flex items-center gap-3">
+            <div className="bg-gradient-to-tr from-sky-600 to-green-600 p-1.5 rounded-lg shadow-md shadow-sky-500/30 ring-1 ring-sky-400/30">
+              <Leaf size={16} className="text-white drop-shadow-sm" />
+            </div>
+            <div>
+              <p className="text-[10px] text-sky-500 uppercase tracking-widest font-semibold mb-0">Candidate Portal</p>
+              <h1 className="text-base font-bold text-sky-950 leading-tight">Welcome, {name}</h1>
+            </div>
           </div>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-white transition-colors"
+            className="flex items-center gap-1.5 text-sm font-semibold text-sky-600 hover:text-sky-900 hover:bg-sky-50 px-3 py-1.5 rounded-lg transition-colors"
           >
             <LogOut size={15} />
             Sign out
@@ -150,21 +155,25 @@ export default function CandidateDashboard({ status: propStatus }) {
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-6 py-10">
+      <main className="relative z-10 max-w-3xl mx-auto px-6 py-10">
         {/* Status pill */}
         <div className="mb-8">
-          <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full bg-slate-800 text-slate-300 ring-1 ring-slate-700">
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-sky-100 text-sky-700 border border-sky-200 shadow-sm">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+            </span>
             Current status:&nbsp;
-            <span className="text-white font-semibold">{status.replace('_', ' ')}</span>
+            <span className="text-sky-900 font-bold">{status.replace('_', ' ')}</span>
           </span>
         </div>
 
         {/* Pipeline */}
         <div className="space-y-4">
           {STAGES.map((stage, idx) => {
-            const state   = stageState(stage, status)
-            const colors  = colorMap[stage.color]
-            const Icon    = stage.icon
+            const state    = stageState(stage, status)
+            const colors   = colorMap[stage.color]
+            const Icon     = stage.icon
             const isActive = state === 'active'
             const isDone   = state === 'done'
             const isLocked = state === 'locked'
@@ -174,18 +183,18 @@ export default function CandidateDashboard({ status: propStatus }) {
                 key={stage.id}
                 className={[
                   'relative rounded-2xl border p-6 transition-all duration-200',
-                  isActive ? 'bg-slate-800 border-transparent hover:-translate-y-1 cursor-pointer' : '',
-                  isDone   ? 'bg-slate-800/50 border-slate-700 hover:-translate-y-0.5 hover:border-slate-600 hover:shadow-xl cursor-pointer' : '',
-                  isLocked ? 'bg-slate-800/20 border-slate-800/50 opacity-40 grayscale cursor-not-allowed select-none' : '',
+                  isActive ? 'bg-white/95 border-sky-200 hover:-translate-y-1 cursor-pointer' : '',
+                  isDone   ? 'bg-white/70 border-sky-100 hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-lg cursor-pointer' : '',
+                  isLocked ? 'bg-sky-50/40 border-sky-100/50 opacity-50 grayscale cursor-not-allowed select-none' : '',
                 ].join(' ')}
                 style={isActive ? { boxShadow: colors.glowShadow } : undefined}
               >
-                {/* Step connector line */}
+                {/* Step connector */}
                 {idx < STAGES.length - 1 && (
-                  <span className="absolute left-[2.35rem] bottom-0 translate-y-full w-0.5 h-4 bg-slate-700 z-0" />
+                  <span className="absolute left-[2.35rem] bottom-0 translate-y-full w-0.5 h-4 bg-sky-200 z-0" />
                 )}
 
-                {/* Action Required ribbon — top-right of active card */}
+                {/* Action Required ribbon */}
                 {isActive && (
                   <div className={`absolute top-4 right-4 flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full ${colors.actionBadge}`}>
                     <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
@@ -198,9 +207,9 @@ export default function CandidateDashboard({ status: propStatus }) {
                   <div
                     className={[
                       'shrink-0 w-11 h-11 rounded-xl flex items-center justify-center',
-                      isActive  ? colors.icon : '',
-                      isDone    ? 'bg-emerald-500/15 text-emerald-400' : '',
-                      isLocked  ? 'bg-slate-700/30 text-slate-600' : '',
+                      isActive ? colors.icon : '',
+                      isDone   ? 'bg-emerald-100 text-emerald-600' : '',
+                      isLocked ? 'bg-sky-100/50 text-sky-300' : '',
                     ].join(' ')}
                   >
                     {isDone
@@ -214,16 +223,16 @@ export default function CandidateDashboard({ status: propStatus }) {
                   {/* Text */}
                   <div className="flex-1 min-w-0 pr-24">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h2 className={['text-base font-semibold', isLocked ? 'text-slate-600' : 'text-white'].join(' ')}>
+                      <h2 className={['text-base font-semibold', isLocked ? 'text-sky-400/60' : 'text-sky-950'].join(' ')}>
                         Stage {stage.id}: {stage.label}
                       </h2>
                       {isDone && (
-                        <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                           Completed
                         </span>
                       )}
                     </div>
-                    <p className={['text-sm mt-1 leading-relaxed', isLocked ? 'text-slate-700' : 'text-slate-400'].join(' ')}>
+                    <p className={['text-sm mt-1 leading-relaxed', isLocked ? 'text-sky-400/40' : 'text-sky-700/70'].join(' ')}>
                       {stage.description}
                     </p>
                   </div>
@@ -233,7 +242,7 @@ export default function CandidateDashboard({ status: propStatus }) {
                     {isActive && (
                       <button
                         onClick={() => navigate(stage.route)}
-                        className={`flex items-center gap-1 text-sm font-semibold px-4 py-2 rounded-xl text-white transition-colors shadow-lg ${colors.bg}`}
+                        className={`flex items-center gap-1 text-sm font-bold px-4 py-2 rounded-xl text-white transition-all shadow-md transform hover:-translate-y-0.5 ${colors.bg}`}
                       >
                         Start <ChevronRight size={15} />
                       </button>
@@ -244,7 +253,7 @@ export default function CandidateDashboard({ status: propStatus }) {
                       </span>
                     )}
                     {isLocked && (
-                      <Lock size={16} className="text-slate-700" />
+                      <Lock size={16} className="text-sky-300" />
                     )}
                   </div>
                 </div>
@@ -253,7 +262,7 @@ export default function CandidateDashboard({ status: propStatus }) {
           })}
         </div>
 
-        <p className="text-center text-xs text-slate-600 mt-10">
+        <p className="text-center text-xs text-sky-400 mt-10 font-medium">
           Stages unlock automatically as your application progresses. Reach out to HR if you face any issues.
         </p>
       </main>
